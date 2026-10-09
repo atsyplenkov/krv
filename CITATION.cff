@@ -1,0 +1,10 @@
+cff-version: 1.2.0
+message: "If you use WDC in research, please cite the version used."
+title: "Water Discharge Calculator"
+type: software
+authors:
+  - family-names: "Loshkov"
+    given-names: "Oleg"
+version: "4.4.0"
+repository-code: "https://github.com/olegegka/krv"
+license: "Apache-2.0"

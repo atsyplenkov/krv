@@ -11,8 +11,9 @@ String get appLanguage {
   return 'ru';
 }
 
-String tr(String source) =>
-    appLanguage == 'en' ? english[source] ?? source : source;
+String tr(String source) => appLanguage == 'en'
+    ? english44[source] ?? english[source] ?? source
+    : source;
 String bankLabel(String? bank) => bank == null
     ? ''
     : appLanguage == 'en'
@@ -97,10 +98,10 @@ const english = <String, String>{
   "Горизонт": "Horizon",
   "Коэффициент": "Coefficient",
   "Настройки": "Settings",
-  "v4.3": "v4.3",
+  "v4.4": "v4.4",
   "Калькулятор Расходов Воды": "Water Discharge Calculator",
-  "Калькулятор расходов воды 4.3": "Water Discharge Calculator 4.3",
-  "Калькулятор расходов воды · 4.3": "Water Discharge Calculator · 4.3",
+  "Калькулятор расходов воды 4.4": "Water Discharge Calculator 4.4",
+  "Калькулятор расходов воды · 4.4": "Water Discharge Calculator · 4.4",
   "Язык": "Language",
   "Как в системе": "System default",
   "Автоматически получать координаты": "Acquire coordinates automatically",

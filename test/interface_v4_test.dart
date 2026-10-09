@@ -213,7 +213,7 @@ void main() {
         ),
         capture: capture,
       );
-      await tester.tap(find.byType(DropdownButtonFormField<String>));
+      await tester.tap(find.byType(DropdownButtonFormField<String>).first);
       await tester.pumpAndSettle();
       await tester.tap(find.text('Пользовательский I').last);
       await tester.pumpAndSettle();
@@ -299,11 +299,11 @@ void main() {
       final capture = GlobalKey();
       await phone(tester, const SettingsScreen(), capture: capture);
       await tester.scrollUntilVisible(
-        find.byType(DropdownButtonFormField<String>),
+        find.byType(DropdownButtonFormField<String>).first,
         180,
         scrollable: find.byType(Scrollable).first,
       );
-      await tester.tap(find.byType(DropdownButtonFormField<String>));
+      await tester.tap(find.byType(DropdownButtonFormField<String>).first);
       await tester.pumpAndSettle();
       await tester.tap(find.text('English').last);
       await tester.pumpAndSettle();

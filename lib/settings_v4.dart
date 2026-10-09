@@ -21,21 +21,25 @@ mixin SettingsRefresh<T extends StatefulWidget> on State<T> {
 class AppSettings {
   AppSettings({
     this.language = 'system',
+    this.theme = 'system',
     this.autoGps = true,
     CalculationConfig? defaults,
   }) : defaults = defaults ?? CalculationConfig();
   String language;
+  String theme;
   bool autoGps;
   CalculationConfig defaults;
   static AppSettings current = AppSettings();
   static final revision = ValueNotifier<int>(0);
   Map<String, dynamic> toJson() => {
     'language': language,
+    'theme': theme,
     'autoGps': autoGps,
     'defaults': defaults.toJson(),
   };
   factory AppSettings.fromJson(Map<String, dynamic> json) => AppSettings(
     language: json['language'] as String? ?? 'system',
+    theme: json['theme'] as String? ?? 'system',
     autoGps: json['autoGps'] as bool? ?? true,
     defaults: CalculationConfig.fromJson(
       json['defaults'] as Map<String, dynamic>,
@@ -131,6 +135,15 @@ class _SettingsScreenState extends State<SettingsScreen>
     with SettingsRefresh<SettingsScreen> {
   late AppSettings draft = AppSettings.current.copy();
   late String saved = jsonEncode(draft.toJson());
+  @override
+  void dispose() {
+    previewTheme44 = null;
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => AppSettings.revision.value++,
+    );
+    super.dispose();
+  }
+
   bool saving = false;
   bool get dirty => saved != jsonEncode(draft.toJson());
   @override
@@ -160,26 +173,11 @@ class _SettingsScreenState extends State<SettingsScreen>
               ),
             ),
             Text(
-              tr('Калькулятор расходов воды 4.3'),
+              tr('Калькулятор расходов воды 4.4'),
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 12),
-            Text(tr(aboutText)),
-            const SelectableText('olegegkas@gmail.com'),
-            TextButton.icon(
-              onPressed: () async {
-                await Clipboard.setData(
-                  const ClipboardData(text: 'olegegkas@gmail.com'),
-                );
-                if (context.mounted) {
-                  showSnack(context, tr('Почта скопирована'));
-                }
-              },
-              icon: const Icon(Icons.copy),
-              label: Text(tr('Скопировать почту')),
-            ),
-            const Divider(),
             DropdownButtonFormField<String>(
               initialValue: draft.language,
               decoration: InputDecoration(labelText: tr('Язык')),
@@ -192,6 +190,28 @@ class _SettingsScreenState extends State<SettingsScreen>
                 const DropdownMenuItem(value: 'en', child: Text('English')),
               ],
               onChanged: (value) => setState(() => draft.language = value!),
+            ),
+            const SizedBox(height: 16),
+            DropdownButtonFormField<String>(
+              key: const ValueKey('theme-mode'),
+              initialValue: draft.theme,
+              decoration: InputDecoration(labelText: tr('Тема')),
+              items: [
+                for (final entry in {
+                  'system': 'Как в системе',
+                  'light': 'Светлая',
+                  'dark': 'Тёмная',
+                }.entries)
+                  DropdownMenuItem(
+                    value: entry.key,
+                    child: Text(tr(entry.value)),
+                  ),
+              ],
+              onChanged: (value) {
+                setState(() => draft.theme = value!);
+                previewTheme44 = value;
+                AppSettings.revision.value++;
+              },
             ),
             SwitchListTile(
               contentPadding: EdgeInsets.zero,

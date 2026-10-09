@@ -132,10 +132,10 @@ pw.Widget pdfNotation(String text, {double size = 10, bool bold = false}) =>
       ),
     );
 
-Color velocityPointColor(VerticalPoint v, String key) =>
+Color velocityPointColor(VerticalPoint v, String key, {bool dark = false}) =>
     v.isSpeedVertical && (usedCalculation(v)?.weights.containsKey(key) ?? false)
     ? Colors.green.shade700
-    : Colors.black;
+    : (dark ? Colors.white : Colors.black);
 
 Widget resultVelocityTable(BuildContext context, List<VerticalPoint> rows) {
   final keys = velocityKeys
@@ -199,7 +199,7 @@ Widget resultVelocityTable(BuildContext context, List<VerticalPoint> rows) {
   );
 }
 
-Widget resultSoundingTable(List<VerticalPoint> rows) {
+Widget resultSoundingTable(List<VerticalPoint> rows, {bool showIce = false}) {
   final headers = [
     tr('Берег'),
     tr('Расст., м'),
@@ -207,6 +207,8 @@ Widget resultSoundingTable(List<VerticalPoint> rows) {
     tr('Глуб₂, м'),
     tr('Глуб.ср, м'),
     tr('Тип дна'),
+    tr('Глубина с поправкой, м'),
+    tr('Толщина льда, см'),
   ];
   final present = [
     rows.any((v) => v.bank != null),
@@ -215,6 +217,8 @@ Widget resultSoundingTable(List<VerticalPoint> rows) {
     rows.any((v) => v.depth2 != null),
     rows.any((v) => v.avgDepth != null),
     rows.any((v) => v.bottomType.trim().isNotEmpty),
+    rows.any((v) => v.correctedDepth != null && v.correctedDepth != v.avgDepth),
+    showIce && rows.any((v) => v.iceThicknessCm != null),
   ];
   final indexes = [
     for (var i = 0; i < headers.length; i++)
@@ -233,6 +237,8 @@ Widget resultSoundingTable(List<VerticalPoint> rows) {
           _numCell(v.depth2, 3),
           _numCell(v.avgDepth, 3),
           v.bottomType,
+          _numCell(v.correctedDepth, 3),
+          _numCell(v.iceThicknessCm, 2),
         ];
         return DataRow(
           cells: [for (final i in indexes) DataCell(Text(cells[i]))],
