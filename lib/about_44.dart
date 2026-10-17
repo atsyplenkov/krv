@@ -1,8 +1,8 @@
 part of 'main.dart';
 
 class Project44 {
-  static const version = '4.4.0';
-  static const build = '11';
+  static const version = '4.5.0';
+  static const build = '12';
   static const email = 'olegegkas@gmail.com';
   static const repository = 'https://github.com/olegegka/krv';
   static const issues = '$repository/issues';
@@ -13,8 +13,29 @@ class Project44 {
       : 'Калькулятор расходов воды';
   static String get author =>
       appLanguage == 'en' ? 'Oleg Loshkov' : 'Олег Лошков';
-  static String get citation =>
-      '$author. $name. ${tr('Версия')} $version. 2026. ${doi.isEmpty ? repository : 'https://doi.org/$doi'}';
+  static String get citation => citation45(iso: appLanguage == 'en');
+}
+
+String citation45({required bool iso, DateTime? date}) {
+  final now = date ?? DateTime.now();
+  const months = [
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
+  ];
+  if (iso) {
+    return 'LOSHKOV, O. D., 2026. Water Discharge Calculator [mobile application]. Version 4.5. Electronic data. GitHub. Available from: ${Project44.repository} [Accessed ${now.day} ${months[now.month - 1]} ${now.year}]';
+  }
+  return 'О. Д. Лошков. Калькулятор расходов воды : [Электронный ресурс] : мобильное приложение / разработчик О. Д. Лошков. – Версия 4.5. – Электрон. дан. – [Б. м.] : GitHub, 2026. – URL: ${Project44.repository} (дата обращения: ${now.day.toString().padLeft(2, '0')}.${now.month.toString().padLeft(2, '0')}.${now.year}).';
 }
 
 Future<void> openExternal44(BuildContext context, String url) async {
@@ -30,11 +51,15 @@ Future<void> openExternal44(BuildContext context, String url) async {
   }
 }
 
+String aboutText45(String key) =>
+    (appLanguage == 'en' ? aboutEnglish45 : aboutRussian45)[key]!;
+String privacy44(bool en) => (en ? aboutEnglish45 : aboutRussian45)['privacy']!;
+String terms44(bool en) => (en ? aboutEnglish45 : aboutRussian45)['terms']!;
+
 class AboutScreen44 extends StatelessWidget {
   const AboutScreen44({super.key});
   @override
   Widget build(BuildContext context) {
-    final en = appLanguage == 'en';
     void page(String title, String body, {List<Widget> actions = const []}) =>
         Navigator.push(
           context,
@@ -63,9 +88,9 @@ class AboutScreen44 extends StatelessWidget {
       trailing: const Icon(Icons.chevron_right),
       onTap: tap,
     );
-    final intro = en
-        ? 'Water Discharge Calculator (WDC) is an application for recording, processing and storing hydrometric measurements and calculating water discharge.\n\nDeveloped in 2025–2026 by Oleg Loshkov, a student of the Department of Land Hydrology, Faculty of Geography, Lomonosov Moscow State University.\n\nThe methodological basis includes MI 1759-87 and the WMO Guide to Hydrological Practices, WMO-No. 168, sixth edition.\n\nThis app was vibe-coded with the help of an AI assistant.\n\nWDC is open-source software licensed under Apache License 2.0. The author welcomes scientific and professional cooperation, commercial proposals, sponsorship and other initiatives.'
-        : '«Калькулятор расходов воды» (КРВ) — приложение для ввода, обработки и сохранения данных гидрометрических измерений и расчёта расхода воды.\n\nРазработано в 2025–2026 гг. Олегом Лошковым, студентом кафедры гидрологии суши географического факультета Московского государственного университета имени М. В. Ломоносова.\n\nМетодическая основа — МИ 1759-87 и Руководство по гидрологической практике ВМО № 168, шестая редакция.\n\nПриложение навайбкожено с помощью ИИ-ассистента.\n\nКРВ — открытое программное обеспечение под лицензией Apache License 2.0. Автор открыт для научного и профессионального сотрудничества, коммерческих предложений, спонсорской поддержки и других инициатив.';
+    final email = link('Написать автору', 'mailto:${Project44.email}');
+    final repo = link('Открыть код на GitHub', Project44.repository);
+    final issue = link('Создать Issue', '${Project44.issues}/new/choose');
     return Scaffold(
       appBar: AppBar(title: Text(tr('О приложении'))),
       body: ListView(
@@ -88,58 +113,34 @@ class AboutScreen44 extends StatelessWidget {
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 16),
-          Text(intro),
+          Text(aboutText45('intro')),
           const SizedBox(height: 16),
           Text(tr('Проект'), style: Theme.of(context).textTheme.titleMedium),
           row(
             'Исходный код',
             Icons.code,
-            () => page(
-              'Исходный код',
-              en
-                  ? 'The source code is available in the official GitHub repository. You may study, use, modify and redistribute it, including commercially, subject to Apache License 2.0.'
-                  : 'Исходный код доступен в официальном репозитории GitHub. Его можно изучать, использовать, изменять и распространять, в том числе коммерчески, при соблюдении Apache License 2.0.',
-              actions: [link('Открыть GitHub', Project44.repository)],
-            ),
+            () => page('Исходный код', aboutText45('source'), actions: [repo]),
+          ),
+          row(
+            'Методическая основа',
+            Icons.menu_book,
+            () => page('Методическая основа', aboutText45('method')),
           ),
           row(
             'Обратная связь',
             Icons.feedback_outlined,
             () => page(
               'Обратная связь',
-              en
-                  ? 'Report interface errors, unexpected calculation results, methodological concerns or feature suggestions through GitHub Issues. Include the app version, steps to reproduce and expected result. Issues are public after the repository is published: do not attach confidential measurements, coordinates or photos. For private enquiries, contact the author by email.'
-                  : 'Сообщайте об ошибках интерфейса, неожиданных результатах расчёта, методических вопросах и предложениях через GitHub Issues. Укажите версию, действия для воспроизведения и ожидаемый результат. После публикации репозитория обсуждения общедоступны: не прикладывайте конфиденциальные измерения, координаты и фотографии. Для личных вопросов напишите автору.',
-              actions: [
-                link('Создать Issue', '${Project44.issues}/new/choose'),
-                link('Написать автору', 'mailto:${Project44.email}'),
-                const SelectableText(Project44.email),
-              ],
+              aboutText45('feedback'),
+              actions: [issue, email],
             ),
           ),
           row(
             'Цитировать КРВ',
             Icons.format_quote,
-            () => page(
-              'Цитировать КРВ',
-              (en
-                      ? 'If WDC contributed to your research, please cite the version used. Citation is a request, not an additional licence condition.\n\n'
-                      : 'Если КРВ использовался в исследовании, автор будет признателен за цитирование использованной версии. Это просьба, а не дополнительное условие лицензии.\n\n') +
-                  Project44.citation,
-              actions: [
-                TextButton.icon(
-                  onPressed: () async {
-                    await Clipboard.setData(
-                      ClipboardData(text: Project44.citation),
-                    );
-                    if (context.mounted) showSnack(context, tr('Скопировано'));
-                  },
-                  icon: const Icon(Icons.copy),
-                  label: Text(tr('Скопировать')),
-                ),
-                if (Project44.doi.isNotEmpty)
-                  link('Открыть DOI', 'https://doi.org/${Project44.doi}'),
-              ],
+            () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const CitationScreen45()),
             ),
           ),
           row(
@@ -147,45 +148,8 @@ class AboutScreen44 extends StatelessWidget {
             Icons.favorite_outline,
             () => page(
               'Поддержать проект',
-              en
-                  ? 'WDC is free to use. You can support development with feedback, test cases, documentation, translations or code contributions. The author welcomes cooperation and sponsorship. Contact the author to discuss support. Voluntary support does not unlock extra features or grant additional software rights.'
-                  : 'КРВ распространяется бесплатно. Поддержать развитие можно обратной связью, контрольными примерами, документацией, переводами и исправлениями кода. Автор открыт для сотрудничества и спонсорской поддержки. Для обсуждения поддержки свяжитесь с автором. Добровольная поддержка не открывает дополнительные функции и не предоставляет дополнительных прав на программу.',
-              actions: [
-                if (Project44.donation.isNotEmpty)
-                  link('Поддержать проект', Project44.donation),
-                link('Написать автору', 'mailto:${Project44.email}'),
-              ],
-            ),
-          ),
-          const Divider(),
-          Text(
-            tr('Информация'),
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-          row(
-            'Методическая основа',
-            Icons.menu_book,
-            () => page(
-              'Методическая основа',
-              en
-                  ? 'MI 1759-87: discharge measurements in rivers and canals using the velocity–area method.\n\nWorld Meteorological Organization. Guide to Hydrological Practices. WMO-No. 168. Sixth edition.\n\nThe application implements and automates selected procedures; it does not implement every case in these publications. Check the selected velocity formula, bank coefficients and suitability of the cross section. Multi-channel sections are not supported. Bank extrapolation is an assumption outside the surveyed profile.'
-                  : 'МИ 1759-87: измерение расхода воды в реках и каналах методом «скорость — площадь».\n\nВсемирная метеорологическая организация. Руководство по гидрологической практике. ВМО № 168. Шестое издание.\n\nПриложение реализует и автоматизирует отдельные процедуры, а не все случаи из этих источников. Проверяйте выбранные формулы скоростей, береговые коэффициенты и пригодность створа. Расчёт нескольких рукавов не поддерживается. Экстраполяция берегов является предположением за пределами измеренного профиля.',
-            ),
-          ),
-          row(
-            'История версий',
-            Icons.history,
-            () => page(
-              'История версий',
-              en
-                  ? '4.4\nLight and dark themes; separate About screen and legal documents; bed type and ice thickness entry; ice profile; water-level geometry and bank extrapolation; protection against invalid dry velocity verticals; improved exports and depth-edit confirmation.\n\n4.3\nImproved sounding entry, depth hints, result tables and language switching.\n\n4.2\nMeasurement transfer using .krv archives.'
-                  : '4.4\nСветлая и тёмная темы; отдельный экран «О приложении» и документы; ввод типа дна и толщины льда; график льда; пересчёт геометрии при изменении уровня и экстраполяция берегов; защита от осушенных скоростных вертикалей; улучшения экспорта и подтверждение изменения глубин.\n\n4.3\nУлучшены ввод промеров, подсказки глубин, таблицы результатов и переключение языка.\n\n4.2\nПеренос измерений через архивы .krv.',
-              actions: [
-                link(
-                  'Полная история изменений',
-                  '${Project44.repository}/blob/main/CHANGELOG.md',
-                ),
-              ],
+              aboutText45('support'),
+              actions: [email],
             ),
           ),
           const Divider(),
@@ -193,33 +157,51 @@ class AboutScreen44 extends StatelessWidget {
             tr('Правовая информация'),
             style: Theme.of(context).textTheme.titleMedium,
           ),
-          row('Лицензия Apache 2.0', Icons.description_outlined, () async {
-            final license = await rootBundle.loadString('assets/legal/LICENSE');
-            if (context.mounted) {
-              page(
-                'Лицензия Apache 2.0',
-                '© 2025–2026 Oleg Loshkov (Олег Лошков)\n\n$license',
-              );
-            }
-          }),
+          row(
+            'Лицензия Apache 2.0',
+            Icons.description_outlined,
+            () => page(
+              'Лицензия Apache 2.0',
+              appLanguage == 'en'
+                  ? '© 2025–2026 Oleg Loshkov\n\nApache License 2.0 permits use, modification and distribution, including commercial use, subject to its terms. The software is provided without warranties. The full licence is included in the app and is available offline.'
+                  : '© 2025–2026 Олег Лошков\n\nApache License 2.0 разрешает использование, изменение и распространение, в том числе коммерческое, при соблюдении её условий. Программа предоставляется без гарантий. Полный текст лицензии включён в приложение и доступен без интернета.',
+              actions: [
+                TextButton(
+                  onPressed: () async {
+                    final license = await rootBundle.loadString(
+                      'assets/legal/LICENSE',
+                    );
+                    if (context.mounted) page('Лицензия Apache 2.0', license);
+                  },
+                  child: Text(tr('Полная версия')),
+                ),
+              ],
+            ),
+          ),
           row(
             'Политика конфиденциальности',
             Icons.privacy_tip_outlined,
-            () => page('Политика конфиденциальности', privacy44(en)),
+            () => page(
+              'Политика конфиденциальности',
+              aboutText45('privacy'),
+              actions: [email, repo],
+            ),
           ),
           row(
             'Условия использования',
             Icons.info_outline,
-            () => page('Условия использования', terms44(en)),
+            () => page(
+              'Условия использования',
+              aboutText45('terms'),
+              actions: [issue, email],
+            ),
           ),
           row(
             'Лицензии стороннего ПО',
             Icons.account_tree_outlined,
-            () => showLicensePage(
-              context: context,
-              applicationName: Project44.name,
-              applicationVersion: Project44.version,
-              applicationLegalese: '© 2025–2026 Oleg Loshkov',
+            () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const LicensesScreen45()),
             ),
           ),
           const SizedBox(height: 16),
@@ -230,62 +212,185 @@ class AboutScreen44 extends StatelessWidget {
   }
 }
 
-String privacy44(bool en) => en
-    ? '''Privacy Policy
-Updated: 8 October 2026
+class CitationScreen45 extends StatefulWidget {
+  const CitationScreen45({super.key});
+  @override
+  State<CitationScreen45> createState() => _CitationScreen45State();
+}
 
-WDC does not require an account. Measurement data, comments, coordinates, photos and calculations are stored and processed on your device. The app has no developer-operated server, advertising, analytics or automatic crash-reporting service. The developer does not automatically receive your measurement data.
+class _CitationScreen45State extends State<CitationScreen45>
+    with WidgetsBindingObserver {
+  Timer? midnight;
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    schedule();
+  }
 
-Location is requested when you use coordinate retrieval, including when creating a measurement with automatic location enabled in Settings. There is no background tracking. Location permissions and system location services are controlled by your operating system.
+  void schedule() {
+    midnight?.cancel();
+    final now = DateTime.now();
+    midnight = Timer(
+      DateTime(now.year, now.month, now.day + 1).difference(now),
+      () {
+        if (mounted) {
+          setState(() {});
+          schedule();
+        }
+      },
+    );
+  }
 
-Camera and photo selection are used at your request to attach photos. Attached copies and captions are stored with the measurement. Exported photos may contain original metadata, including location recorded by the camera.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      setState(() {});
+      schedule();
+    }
+  }
 
-Import reads a file you select. CSV, PDF and .krv exports may contain coordinates, comments and other measurement data; .krv and PDF can include photos. You choose whether and where to share files. Recipient apps and services handle them under their own policies.
+  @override
+  void dispose() {
+    midnight?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
 
-Android or the device manufacturer may back up or transfer app data according to your device and account settings. WDC does not operate this service; the developer has no access to those backups. Keep your own .krv copies of important measurements.
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: Text(tr('Цитировать КРВ'))),
+    body: ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        Text(
+          appLanguage == 'en'
+              ? 'If WDC was used in scientific research, the author would appreciate a citation.'
+              : 'Если КРВ использовался в научных исследованиях, автор будет признателен за цитирование.',
+        ),
+        for (final iso in [if (appLanguage != 'en') false, true]) ...[
+          const SizedBox(height: 20),
+          Text(
+            iso ? 'ISO 690' : 'ГОСТ',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          SelectableText(
+            citation45(iso: iso),
+            style: const TextStyle(fontStyle: FontStyle.italic),
+          ),
+          TextButton.icon(
+            onPressed: () async {
+              await Clipboard.setData(
+                ClipboardData(text: citation45(iso: iso)),
+              );
+              if (context.mounted) {
+                setState(() {});
+                showSnack(context, tr('Скопировано'));
+              }
+            },
+            icon: const Icon(Icons.copy),
+            label: Text(tr('Скопировать')),
+          ),
+        ],
+      ],
+    ),
+  );
+}
 
-Deleting measurements removes their stored app copies; exported files, files already shared, source photos and external backups are not deleted. Clearing app storage or uninstalling removes local app data, subject to system backup and restore behaviour.
+// Only byte-identical notice texts are coalesced; every associated package is retained.
+Future<Map<String, List<String>>> collectLicenses45() async {
+  final notices = <String, Set<String>>{};
+  await for (final entry in LicenseRegistry.licenses) {
+    final body = entry.paragraphs
+        .map((p) => '${p.indent > 0 ? '  ' * p.indent : ''}${p.text}')
+        .join('\n\n');
+    notices.putIfAbsent(body, () => <String>{}).addAll(entry.packages);
+  }
+  return {for (final e in notices.entries) e.key: e.value.toList()..sort()};
+}
 
-Opening GitHub, email or a support link uses an external app or website. Those services may process network and account information. Information you send to the author is used to respond to your enquiry. Public Issues are visible to other users.
+class LicensesScreen45 extends StatefulWidget {
+  const LicensesScreen45({super.key});
+  @override
+  State<LicensesScreen45> createState() => _LicensesScreen45State();
+}
 
-This policy will be updated if data handling changes. Contact: ${Project44.email}
-Official repository: ${Project44.repository}'''
-    : '''Политика конфиденциальности
-Обновлено: 8 октября 2026 г.
+class _LicensesScreen45State extends State<LicensesScreen45> {
+  late Future<Map<String, List<String>>> notices = collectLicenses45();
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: Text(tr('Лицензии стороннего ПО'))),
+    body: FutureBuilder<Map<String, List<String>>>(
+      future: notices,
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return Center(
+            child: TextButton(
+              onPressed: () => setState(() => notices = collectLicenses45()),
+              child: Text(tr('Повторить')),
+            ),
+          );
+        }
+        if (!snapshot.hasData) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        final entries = snapshot.data!.entries.toList()
+          ..sort((a, b) => a.value.first.compareTo(b.value.first));
+        return ListView.builder(
+          itemCount: entries.length,
+          itemBuilder: (context, index) {
+            final e = entries[index];
+            return ExpansionTile(
+              key: PageStorageKey(index),
+              title: Text(
+                e.value.join(', '),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: SelectableText('${e.value.join(', ')}\n\n${e.key}'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    ),
+  );
+}
 
-КРВ не требует регистрации. Данные измерений, комментарии, координаты, фотографии и результаты расчётов хранятся и обрабатываются на вашем устройстве. В приложении нет сервера разработчика, рекламы, аналитики и автоматической отправки отчётов о сбоях. Разработчик не получает данные измерений автоматически.
+const aboutRussian45 = <String, String>{
+  "intro":
+      "«Калькулятор расходов воды» (КРВ) – приложение для ввода, обработки и сохранения данных гидрометрических измерений и расчёта расходов воды.\n\nПриложение навайбкожено в 2025—2026 гг. Олегом Лошковым, студентом кафедры гидрологии суши географического факультета Московского государственного университета имени М. В. Ломоносова.\n\nМетодическую основу расчётной части составляют «Методические Указания. Расход воды на реках и каналах. Методика выполнения измерений методом «скорость – площадь» МИ 1759-87» и «Руководство по гидрологической практике, ВМО № 168, 6 редакция».\n\nКРВ развивается как открытое программное обеспечение. Исходный код проекта публикуется в открытом доступе и может свободно использоваться, изменяться и распространяться в соответствии с условиями лицензии Apache License 2.0.\n\nАвтор заинтересован в развитии приложения и открыт для предложений по сотрудничеству, научному и практическому применению КРВ, спонсорской поддержке и другим инициативам.",
+  "source":
+      "«Калькулятор расходов воды» является проектом с открытым исходным кодом.\n\nОн доступен в официальном репозитории проекта на GitHub. Его можно изучать, использовать в собственных проектах, изменять, распространять и создавать на его основе производные работы, в том числе для коммерческого использования, при соблюдении условий лицензии Apache License 2.0.",
+  "feedback":
+      "КРВ развивается как открытый проект, и обратная связь помогает сделать приложение точнее, удобнее и полезнее для гидрологических исследований и полевых работ.\n\nМожно сообщить о:\n\nобнаруженной ошибке;\n\nнекорректном или неожиданном результате расчёта;\n\nпроблеме интерфейса;\n\nпредложении новой функции;\n\nпредложении по улучшению расчётной методики;\n\nошибке или неточности в документации;\n\nдругих проблемах и предложениях.\n\nДля технических вопросов и предложений предпочтительно использовать GitHub Issues – так обсуждение остаётся доступным другим пользователям и разработчикам.\n\nЕсли вопрос содержит данные, которые пользователь не хочет публиковать открыто, можно связаться с автором по электронной почте olegegkas@gmail.com.",
+  "support":
+      "КРВ распространяется бесплатно и не имеет платных функций.\n\nПоддержать развитие проекта можно даже обратной связью, но автор открыт для сотрудничества и спонсорской поддержки. Среди важных дел, требующих финансирования – доступность приложения в AppStore. По всем вопросам поддержки можете связаться с автором по почте olegegkas@gmail.com:",
+  "method":
+      "В основу расчётной части приложения легли:\n\nМетодические Указания. Расход воды на реках и каналах. Методика выполнения измерений методом «скорость – площадь» МИ 1759-87.\n\nРуководство по гидрологической практике, ВМО № 168, 6 редакция.\n\nПри этом приложение оставляет пользователю свободу. Например, можно изменять весовые коэффициенты, назначаемые скоростям течения на разных глубинах на скоростной вертикали при расчёте средней скорости на ней на трёх уровнях: на уровне всего приложения (для всех новых измерений), на уровне одного измерения расхода воды (для всех скоростных вертикалей в этом измерении) и для каждой скоростной вертикали.\n\nПомимо этого, существуют некоторые авторские дополнения — например, возможность выбора способа достраивания берегов при повышении уровня воды между промерными работами и измерением скоростей.",
+  "privacy":
+      "Политика конфиденциальности\n\nПоследнее обновление: 17.10.2026\n\nКРВ не требует регистрации. Данные измерений, комментарии, фотографии и результаты расчётов хранятся и обрабатываются на устройстве пользователя. У приложения нет сервера, рекламы и аналитики, разработчик не получает доступ к данным измерений пользователей.\n\nСведения о местоположении запрашиваются в момент определения координат створа, в том числе, при создании нового измерения, если в настройках включено автоматическое получение координат. Фоновое отслеживание не выполняется. Разрешения и системные службы геолокации управляются операционной системой.\n\nДоступ к камере и выбранным фотографиям предоставляется только по инициативе пользователя. Копии снимков хранятся вместе с измерением. Экспортируемые фотографии могут содержать метаданные, включая координаты, если соответствующие настройки включены в телефоне пользователя.\n\nФункция импорта измерений читает только выбранный пользователем файл. Экспортируемые файлы .csv, .pdf и .krv могут включать координаты, комментарии и другие данные измерения; .pdf и .krv также могут включать фотографии. Получателя и способ передачи выбирает пользователь. Дальнейшая обработка регулируется правилами выбранного приложения или сервиса.\n\nAndroid или производитель устройства может выполнять резервное копирование и перенос данных согласно настройкам устройства и учётной записи. КРВ не управляет этим процессом, разработчик не имеет доступа к таким копиям. Для важных измерений пользователь может сохранять собственные архивы .krv.\n\nУдаление измерения удаляет его копии в хранилище приложения, экспортированные и уже отправленные файлы, исходные фотографии и внешние резервные копии не удаляются. Очистка хранилища или удаление приложения удаляет локальные данные с учётом механизмов системного резервного копирования и восстановления.\n\nОткрытие GitHub, почты и ссылок поддержки использует внешние приложения или сайты. Они могут обрабатывать сетевые данные и сведения об учётной записи. Информация, которую пользователь отправляет автору, используется для ответа на обращение. Публичные Issues в GitHub доступны другим пользователям.\n\nПри изменении способа обработки данных политика будет обновлена.\n\nКонтакт с автором – olegegkas@gmail.com.",
+  "terms":
+      "КРВ – инструмент ввода, обработки и расчёта данных гидрометрических наблюдений. Приложение не заменяет профессиональную оценку, требования применяемых методик и инструкции к оборудованию.\n\nРезультаты зависят от качества и полноты наблюдений, состояния оборудования, выбранных формул и коэффициентов. Пользователь проверяет исходные данные и пригодность метода. Перед использованием в исследованиях, инженерных решениях и официальной отчётности проверяйте результаты.\n\nПрограмма предоставляется под Apache License 2.0 без гарантий в пределах, допускаемых применимым законодательством. Действуют положения этой лицензии о гарантиях и ответственности; настоящие условия не отменяют обязательные права, установленные законом. Разработчик стремится исправлять ошибки, но не гарантирует их полного отсутствия и совместимости со всеми устройствами.\n\nРешение о пригодности результатов для конкретной задачи принимает пользователь. О возможных ошибках расчёта и интерфейса сообщайте через GitHub Issues или по почте olegegkas@gmail.com.",
+};
 
-Местоположение запрашивается при использовании определения координат, в том числе при создании измерения, если в настройках включено автоматическое получение координат. Фоновое отслеживание не выполняется. Разрешения и системные службы геолокации управляются операционной системой.
-
-Камера и выбор фотографий используются по вашему действию для прикрепления снимков. Копии снимков и подписи хранятся вместе с измерением. Экспортируемые фотографии могут содержать исходные метаданные, включая координаты, записанные камерой.
-
-Импорт читает выбранный вами файл. Экспорт CSV, PDF и .krv может включать координаты, комментарии и другие данные измерения; .krv и PDF также могут включать фотографии. Получателя и способ передачи выбираете вы. Дальнейшая обработка регулируется правилами выбранного приложения или сервиса.
-
-Android или производитель устройства может выполнять резервное копирование и перенос данных согласно настройкам устройства и учётной записи. КРВ не управляет этим сервисом, разработчик не имеет доступа к таким копиям. Для важных измерений сохраняйте собственные архивы .krv.
-
-Удаление измерения удаляет его копии в хранилище приложения. Экспортированные и уже отправленные файлы, исходные фотографии и внешние резервные копии не удаляются. Очистка хранилища или удаление приложения удаляет локальные данные с учётом механизмов системного резервного копирования и восстановления.
-
-Открытие GitHub, почты и ссылок поддержки использует внешние приложения или сайты. Они могут обрабатывать сетевые данные и сведения об учётной записи. Информация, которую вы отправляете автору, используется для ответа на обращение. Публичные Issues доступны другим пользователям.
-
-При изменении обработки данных политика будет обновлена. Контакт: ${Project44.email}
-Официальный репозиторий: ${Project44.repository}''';
-
-String terms44(bool en) => en
-    ? '''Terms of Use
-
-WDC is a tool for recording, processing and calculating hydrometric measurements. It does not replace professional judgement, applicable measurement procedures or equipment instructions.
-
-Results depend on the quality and completeness of observations, equipment condition, selected formula and coefficients. Users must check inputs and the suitability of the method. Verify results before using them in research, engineering or official reporting. Extrapolated banks are estimates, not field observations. Multi-channel discharge calculation is not supported.
-
-The software is provided under Apache License 2.0, without warranties to the extent permitted by applicable law. Its warranty and liability provisions apply; these terms do not override mandatory legal rights. The developer seeks to correct defects but cannot guarantee absence of errors or compatibility with every device.
-
-Users decide whether results are suitable for their task. Report suspected calculation or interface errors via GitHub Issues or ${Project44.email}.'''
-    : '''Условия использования
-
-КРВ — инструмент ввода, обработки и расчёта данных гидрометрических измерений. Приложение не заменяет профессиональную оценку, требования применяемых методик и инструкции к оборудованию.
-
-Результаты зависят от качества и полноты наблюдений, состояния оборудования, выбранных формул и коэффициентов. Пользователь проверяет исходные данные и пригодность метода. Перед использованием в исследованиях, инженерных решениях и официальной отчётности проверяйте результаты. Достроенные берега являются расчётным предположением, а не полевыми наблюдениями. Расчёт расхода для нескольких рукавов не поддерживается.
-
-Программа предоставляется под Apache License 2.0 без гарантий в пределах, допускаемых применимым законодательством. Действуют положения этой лицензии о гарантиях и ответственности; настоящие условия не отменяют обязательные права, установленные законом. Разработчик стремится исправлять ошибки, но не гарантирует их полного отсутствия и совместимости со всеми устройствами.
-
-Решение о пригодности результатов для конкретной задачи принимает пользователь. О возможных ошибках расчёта и интерфейса сообщайте через GitHub Issues или ${Project44.email}.''';
+const aboutEnglish45 = <String, String>{
+  "intro":
+      "Water Discharge Calculator (WDC) is an application for recording, processing and storing hydrometric measurement data and calculating water discharge.\n\nThe app was vibe-coded in 2025–2026 by Oleg Loshkov, a student in the Department of Land Hydrology, Faculty of Geography, Lomonosov Moscow State University.\n\nThe calculations are based on “Guidelines. Water discharge in rivers and canals. Measurement procedure using the velocity–area method”, MI 1759-87, and the “Guide to Hydrological Practices”, WMO-No. 168, sixth edition.\n\nWDC is being developed as open-source software. The project source code is publicly available and may be freely used, modified and distributed under the terms of the Apache License 2.0.\n\nThe author is interested in developing the app further and welcomes proposals for cooperation, scientific and practical applications of WDC, sponsorship and other initiatives.",
+  "source":
+      "Water Discharge Calculator is an open-source project.\n\nIts source code is available in the official project repository on GitHub. You may study it, use it in your own projects, modify and redistribute it, and create derivative works, including for commercial use, subject to the terms of the Apache License 2.0.",
+  "feedback":
+      "WDC is being developed as an open project. Feedback helps make the app more accurate, convenient and useful for hydrological research and fieldwork.\n\nYou can report:\n• a bug;\n• an incorrect or unexpected calculation result;\n• a user interface problem;\n• a suggestion for a new feature;\n• a proposed improvement to a calculation method;\n• an error or inaccuracy in the documentation;\n• other problems or suggestions.\n\nGitHub Issues is the preferred channel for technical questions and suggestions, so that discussions remain available to other users and developers.\n\nIf your enquiry contains information you do not wish to make public, you can contact the author by email at olegegkas@gmail.com.",
+  "support":
+      "WDC is free and has no paid features.\n\nEven providing feedback helps support the project. The author also welcomes cooperation and sponsorship. Making the app available on the App Store is one of the important tasks that require funding. For any enquiries about supporting the project, please contact the author at olegegkas@gmail.com:",
+  "method":
+      "The app’s calculations are based on:\n\nGuidelines. Water discharge in rivers and canals. Measurement procedure using the velocity–area method. MI 1759-87.\n\nGuide to Hydrological Practices, WMO-No. 168, sixth edition.\n\nThe app also gives users flexibility. For example, the weights assigned to velocities measured at different depths when calculating the mean velocity in a vertical can be changed at three levels: for the whole app (all new measurements), for a single discharge measurement (all velocity verticals in that measurement), or for an individual velocity vertical.\n\nThere are also additions developed by the author, such as choosing how to extend the bank profile when the water level rises between depth and velocity measurements.",
+  "privacy":
+      "Privacy Policy\n\nLast updated: 17 October 2026\n\nWDC does not require registration. Measurement data, comments, photographs and calculation results are stored and processed on the user’s device. The app has no server, advertising or analytics, and the developer has no access to users’ measurement data.\n\nLocation information is requested when determining the coordinates of the measurement cross section, including when creating a new measurement if automatic location retrieval is enabled in Settings. There is no background tracking. Location permissions and system location services are managed by the operating system.\n\nThe camera and selected photographs are accessed only at the user’s request. Copies of photographs are stored with the measurement. Exported photographs may contain metadata, including coordinates, if the corresponding settings are enabled on the user’s phone.\n\nThe measurement import feature reads only the file selected by the user. Exported .csv, .pdf and .krv files may contain coordinates, comments and other measurement data; .pdf and .krv files may also contain photographs. The user chooses the recipient and how to share the files. Subsequent processing is governed by the policies of the chosen app or service.\n\nAndroid or the device manufacturer may back up and transfer data according to the device and account settings. WDC does not control this process, and the developer has no access to these backups. Users can keep their own .krv archives of important measurements.\n\nDeleting a measurement removes its copies from the app’s storage. Exported files, files already shared, original photographs and external backups are not deleted. Clearing the app’s storage or uninstalling the app removes local data, subject to the system’s backup and restore mechanisms.\n\nOpening GitHub, email and support links uses external apps or websites. These may process network and account information. Information sent to the author is used to respond to the enquiry. Public GitHub Issues are visible to other users.\n\nThis policy will be updated if the way data is processed changes.\n\nContact the author at olegegkas@gmail.com.",
+  "terms":
+      "WDC is a tool for recording, processing and calculating hydrometric observation data. The app does not replace professional judgement, the requirements of applicable measurement procedures or equipment instructions.\n\nResults depend on the quality and completeness of observations, the condition of the equipment, and the chosen formulas and coefficients. Users must check the input data and the suitability of the method. Verify results before using them in research, engineering decisions or official reporting.\n\nThe software is provided under the Apache License 2.0, without warranties to the extent permitted by applicable law. The licence provisions on warranties and liability apply; these terms do not override mandatory legal rights. The developer aims to correct errors but cannot guarantee that the software is error-free or compatible with every device.\n\nUsers decide whether the results are suitable for their particular task. Please report suspected calculation or interface errors through GitHub Issues or by email at olegegkas@gmail.com.",
+};

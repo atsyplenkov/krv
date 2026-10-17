@@ -1118,17 +1118,19 @@ void _computeGeometry(WdcMeasurement m, {required bool useCorrected}) {
   if (totalWetted > 0) m.hydraulicRadius = roundTo(totalArea / totalWetted, 3);
 }
 
-void _computeVelocitySections(WdcMeasurement m) {
+void _computeVelocitySections(WdcMeasurement m, {bool excludeDry = false}) {
+  bool eligible(VerticalPoint v) =>
+      v.isSpeedVertical &&
+      v.bank == null &&
+      (!excludeDry || (v.correctedDepth ?? 0) > 0);
   if (m.calculationConfig != null &&
-      m.verticals.any(
-        (v) => v.isSpeedVertical && v.bank == null && v.avgVelocity == null,
-      )) {
+      m.verticals.any((v) => eligible(v) && v.avgVelocity == null)) {
     return;
   }
   final speedIndexes = <int>[];
   for (var i = 0; i < m.verticals.length; i++) {
     final v = m.verticals[i];
-    if (v.isSpeedVertical && v.bank == null && v.avgVelocity != null) {
+    if (eligible(v) && v.avgVelocity != null) {
       speedIndexes.add(i);
     }
   }
@@ -1430,79 +1432,6 @@ class _HomeScreenState extends State<HomeScreen>
     }
   }
 
-  Future<void> _importKrv() async {
-    if (_transferring) return;
-    setState(() => _transferring = true);
-    KrvImportPlan? plan;
-    Directory? incoming;
-    VoidCallback? close;
-    try {
-      // Android document providers may expose a custom extension as octet-stream.
-      // Validate the actual archive, rather than hiding it using a MIME filter.
-      final selected = await fs.openFile();
-      if (selected == null || !mounted) return;
-      // Android may return a content URI ending in a document ID, not the
-      // display filename. Recognize KRV by its validated manifest and contents.
-      if (await selected.length() >
-          KrvTransfer.maxTotal + KrvTransfer.maxManifest) {
-        throw const KrvException(
-          'Архив слишком большой. Выберите меньше измерений.',
-        );
-      }
-      if (!mounted) return;
-      close = showWorkProgress(context, tr('Проверяем архив…'));
-      await storage.flush();
-      final base = (await storage._baseDir).path;
-      final temp = (await getTemporaryDirectory()).path;
-      incoming = await Directory(temp).createTemp('krv-incoming-');
-      final path = '${incoming.path}/input.krv';
-      await selected.saveTo(path);
-      plan = await KrvTransfer.inspectInBackground(path, base, temp);
-      close();
-      close = null;
-      if (!mounted) return;
-      final accepted = await showDialog<bool>(
-        context: context,
-        builder: (context) => KrvSummaryDialog(plan: plan!),
-      );
-      if (accepted != true || !mounted) return;
-      close = showWorkProgress(context, tr('Добавляем измерения…'));
-      final approved = plan;
-      await KrvTransfer.commitInBackground(approved, base);
-      close();
-      close = null;
-      await _load();
-      if (mounted) {
-        showSnack(
-          context,
-          '${tr('Добавлено измерений')}: ${approved.records.length}',
-        );
-      }
-    } catch (e) {
-      close?.call();
-      close = null;
-      if (mounted) {
-        showSnack(
-          context,
-          e is KrvException
-              ? tr(e.message)
-              : tr('Импорт не выполнен. Исходные измерения сохранены.'),
-        );
-      }
-    } finally {
-      close?.call();
-      try {
-        await plan?.dispose();
-        if (incoming != null && await incoming.exists()) {
-          await incoming.delete(recursive: true);
-        }
-      } on FileSystemException {
-        /* Temporary files are not measurement data. */
-      }
-      if (mounted) setState(() => _transferring = false);
-    }
-  }
-
   Future<void> _shareOne(WdcMeasurement m, {required bool pdf}) async {
     final close = showWorkProgress(
       context,
@@ -1685,11 +1614,11 @@ class _HomeScreenState extends State<HomeScreen>
               ? (compactToolbar
                     ? '${_selected.length}'
                     : '${tr('Выбрано')}: ${_selected.length}')
-              : 'v4.4',
+              : 'v4.5',
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
-        leadingWidth: _selectionMode ? 48 : 148,
+        leadingWidth: _selectionMode ? 48 : 96,
         titleSpacing: 4,
         leading: _selectionMode
             ? IconButton(
@@ -1701,10 +1630,13 @@ class _HomeScreenState extends State<HomeScreen>
                   IconButton(
                     tooltip: tr('Настройки'),
                     icon: const Icon(Icons.settings_outlined),
-                    onPressed: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const HelpScreen()),
-                    ),
+                    onPressed: () async {
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const HelpScreen()),
+                      );
+                      if (mounted) await _load();
+                    },
                   ),
                   IconButton(
                     tooltip: tr('О приложении'),
@@ -1713,12 +1645,6 @@ class _HomeScreenState extends State<HomeScreen>
                       context,
                       MaterialPageRoute(builder: (_) => const AboutScreen44()),
                     ),
-                  ),
-                  IconButton(
-                    key: const ValueKey('import-krv'),
-                    tooltip: tr('Импорт измерений'),
-                    icon: const Icon(Icons.move_to_inbox_outlined),
-                    onPressed: _transferring ? null : _importKrv,
                   ),
                 ],
               ),
@@ -1754,22 +1680,27 @@ class _HomeScreenState extends State<HomeScreen>
                 ),
               ]
             : [
-                if (compactToolbar)
-                  IconButton(
-                    tooltip: _search.active
-                        ? tr('Изменить поиск')
-                        : tr('Поиск'),
-                    onPressed: _showSearchDialog,
-                    icon: const Icon(Icons.search),
-                  )
-                else
-                  TextButton.icon(
-                    onPressed: _showSearchDialog,
-                    icon: const Icon(Icons.search),
-                    label: Text(
-                      _search.active ? tr('Изменить поиск') : tr('Поиск'),
-                    ),
-                  ),
+                IconButton(
+                  key: const ValueKey('home-search'),
+                  tooltip: _search.active ? tr('Изменить поиск') : tr('Поиск'),
+                  onPressed: _showSearchDialog,
+                  icon: _search.active
+                      ? const SizedBox(
+                          width: 28,
+                          height: 28,
+                          child: Stack(
+                            children: [
+                              Icon(Icons.search),
+                              Positioned(
+                                right: 0,
+                                bottom: 0,
+                                child: Icon(Icons.edit, size: 13),
+                              ),
+                            ],
+                          ),
+                        )
+                      : const Icon(Icons.search),
+                ),
                 PopupMenuButton<SortField>(
                   icon: const Icon(Icons.filter_list),
                   onSelected: (v) => setState(() => _sortField = v),
@@ -1817,11 +1748,20 @@ class _HomeScreenState extends State<HomeScreen>
                   final m = visible[i];
                   final selected = _selected.contains(m.id);
                   return Card(
-                    color: !m.completed
-                        ? const Color(0xFFFFF8E1)
-                        : selected
-                        ? const Color(0xFFDFF1FF)
-                        : Colors.white,
+                    color: selected
+                        ? Theme.of(context).colorScheme.secondaryContainer
+                        : !m.completed
+                        ? (Theme.of(context).brightness == Brightness.dark
+                              ? const Color(0xFF39362A)
+                              : const Color(0xFFFFF8E1))
+                        : Theme.of(context).colorScheme.surfaceContainerLow,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      side: BorderSide(
+                        color: Theme.of(context).colorScheme.outlineVariant,
+                        width: .5,
+                      ),
+                    ),
                     child: Row(
                       children: [
                         Expanded(
@@ -1845,10 +1785,26 @@ class _HomeScreenState extends State<HomeScreen>
                                         ? Icons.check_box
                                         : Icons.check_box_outline_blank,
                                   )
-                                : Icon(
-                                    m.completed
-                                        ? Icons.water_drop_outlined
-                                        : Icons.edit_note,
+                                : Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        m.completed
+                                            ? Icons.water_drop_outlined
+                                            : Icons.edit_note,
+                                      ),
+                                      if (m.completed && m.warnings.isNotEmpty)
+                                        Tooltip(
+                                          message: tr('Предупреждения'),
+                                          child: Icon(
+                                            Icons.error_outline,
+                                            size: 18,
+                                            color: Theme.of(
+                                              context,
+                                            ).colorScheme.error,
+                                          ),
+                                        ),
+                                    ],
                                   ),
                             title: Text(
                               m.titleRiver,
@@ -1857,7 +1813,7 @@ class _HomeScreenState extends State<HomeScreen>
                               ),
                             ),
                             subtitle: Text(
-                              '${m.titleSite}\n${m.completed ? 'Q: ${compactDischarge(m.discharge)} ${tr('м³/с')}' : ''}\n${humanFromIso(m.createdAt)}${m.completed ? '' : tr('\nНезавершённое измерение')}${m.importedCopy ? '\n${tr('Импортированная копия')}' : ''}',
+                              '${m.titleSite}\n${m.completed ? (m.discharge == null ? tr('Расход не определён') : 'Q: ${compactDischarge(m.discharge)} ${tr('м³/с')}') : ''}\n${humanFromIso(m.createdAt)}${m.completed ? '' : tr('\nНезавершённое измерение')}${m.importedCopy ? '\n${tr('Импортированная копия')}' : ''}',
                             ),
                             isThreeLine: true,
                           ),
@@ -2016,10 +1972,7 @@ class StatsCard extends StatelessWidget {
     padding: const EdgeInsets.all(6),
     child: Text.rich(
       TextSpan(
-        style: const TextStyle(
-          fontWeight: FontWeight.w600,
-          fontSize: 15,
-        ),
+        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
         children: [span],
       ),
     ),
@@ -3038,7 +2991,11 @@ class _VelocityScreenState extends State<VelocityScreen>
     }
     final speed = m.verticals.where((v) => v.isSpeedVertical).toList();
     if (speed.isEmpty) return tr('Добавьте хотя бы одну скоростную вертикаль');
-    if (speed.any((v) => v.avgVelocity == null)) {
+    if (speed.any(
+      (v) =>
+          v.avgVelocity == null &&
+          (!m.geometry44 || (v.avgDepth ?? 0) + (levelDelta(m) ?? 0) > 0),
+    )) {
       return tr('Не все скоростные вертикали заполнены');
     }
     return null;
@@ -3052,34 +3009,6 @@ class _VelocityScreenState extends State<VelocityScreen>
     }
     _saveTimer?.cancel();
     recalcAll(m, finalCalculation: true);
-    final block = calculationBlock44(m);
-    if (block != null) {
-      if (mounted) {
-        setState(() {});
-        await showDialog<void>(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: Text(
-              tr(
-                block == drySpeedWarning
-                    ? 'Скоростная вертикаль вне воды'
-                    : block == splitSectionWarning
-                    ? 'Сечение разделилось на несколько русел'
-                    : 'Проверьте форму берега',
-              ),
-            ),
-            content: SingleChildScrollView(child: Text(tr(block))),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: Text(tr('Закрыть')),
-              ),
-            ],
-          ),
-        );
-      }
-      return;
-    }
     await WdcStorage.instance.save(m);
     if (!mounted) return;
     await Navigator.push(
@@ -3784,7 +3713,9 @@ class _ResultScreenState extends State<ResultScreen>
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      '${tr('Расход воды')}: ${_numCell(m.discharge, 6)} ${tr('м³/с')}',
+                      m.discharge == null
+                          ? tr('Расход не определён')
+                          : '${tr('Расход воды')}: ${_numCell(m.discharge, 6)} ${tr('м³/с')}',
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 20,
@@ -3831,7 +3762,7 @@ class _ResultScreenState extends State<ResultScreen>
             Text('${tr('Коэффициент ПБ')}: ${_numCell(m.bankCoeffRight, 2)}'),
             if (m.geometry44 && (m.levelCorrection ?? 0) > 0)
               Text(
-                '${bankLabel('ЛБ')}: ${bankMode44(m.leftExtrapolation)}; ${bankLabel('ПБ')}: ${bankMode44(m.rightExtrapolation)}',
+                '${bankLabel('ЛБ')}: ${appliedBankMode45(m, true)}; ${bankLabel('ПБ')}: ${appliedBankMode45(m, false)}',
               ),
             Text(
               '${tr('Лопастной диаметр вертушки')}: ${_numCell(m.rotorDiameter == null ? null : m.rotorDiameter! * 100, 2)} ${tr('см')}',
@@ -3839,28 +3770,8 @@ class _ResultScreenState extends State<ResultScreen>
             const SizedBox(height: 12),
             StatsCard(m: m),
             IceProfile44(m: m),
-            if (m.warnings.isNotEmpty)
-              Card(
-                color: Theme.of(context).colorScheme.errorContainer,
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        tr('Предупреждения'),
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      ...m.warnings.map(
-                        (w) => Padding(
-                          padding: const EdgeInsets.only(top: 6),
-                          child: Text(tr(w)),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+            for (final warning in m.warnings)
+              Warning44('Предупреждение', warning),
             SizedBox(
               height: 340,
               child: Card(

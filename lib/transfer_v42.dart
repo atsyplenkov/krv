@@ -242,7 +242,7 @@ class KrvTransfer {
         jsonEncode({
           'format': 'krv',
           'version': 1,
-          'appVersion': '4.4.0',
+          'appVersion': '4.5.0',
           'records': manifest,
         }),
       );

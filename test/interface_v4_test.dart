@@ -183,7 +183,7 @@ void main() {
     recalcAll(record, finalCalculation: true);
     await tester.runAsync(() => WdcStorage.instance.save(record));
     await phone(tester, const HomeScreen());
-    await tester.tap(find.text('Поиск'));
+    await tester.tap(find.byKey(const ValueKey('home-search')));
     await tester.pumpAndSettle();
     final river = find.byWidgetPredicate(
       (w) => w is TextField && w.decoration?.labelText == 'Название реки',

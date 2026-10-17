@@ -1,28 +1,43 @@
 part of 'main.dart';
 
 const zeroDepthWarning =
-    'В створе обнаружены промеры с нулевой глубиной. Проверьте исходные данные. Если они соответствуют суше между разными рукавами в створе, выполните отдельное измерение для каждого рукава или выберите другой створ. Текущая версия приложения не умеет выполнять расчёты для нескольких рукавов в створе.';
+    'В створе обнаружены промеры с нулевой глубиной. Проверьте исходные данные. Если они соответствуют суше между разными рукавами, рекомендуется выполнить отдельное измерение для каждого рукава или выбрать другой створ. Общий расчёт не учитывает отдельные рукава и их береговые коэффициенты.';
 const drySpeedWarning =
-    'После учёта изменения уровня воды скоростные вертикали оказались на осушившемся участке. Проверьте уровни воды и исходные данные. Расчёт расхода недоступен, пока эти вертикали отмечены как скоростные. Введённые значения сохранены.';
+    'Осушенные скоростные вертикали исключены из расчёта расхода при текущем уровне воды. Введённые скорости и отметки вертикалей сохранены. При повышении уровня эти вертикали снова будут участвовать в расчёте.';
 const splitSectionWarning =
-    'После учёта изменения уровня воды в створе образовалось несколько отдельных водных участков. Текущая версия приложения не поддерживает общий расчёт расхода для такого сечения. Проверьте исходные данные. Если разделение соответствует действительности, выполните отдельное измерение для каждого рукава или выберите другой створ. Введённые значения сохранены.';
+    'В створе несколько отдельных водных участков. Общий расчёт не учитывает отдельные рукава и их береговые коэффициенты; скорости могут усредняться между вертикалями по разные стороны суши. Результат имеет методические ограничения. Рекомендуется отдельное измерение для каждого рукава.';
 const invalidSlopeWarning =
-    'Невозможно продолжить крайний склон выбранного берега. Для экстраполяции нужны нулевая глубина на исходном урезе и увеличивающаяся к руслу глубина соседнего промера. Выберите вертикальный берег или проверьте промеры.';
+    'Продолжить склон невозможно. Расчёт выполнен с вертикальным берегом. Выбранный способ сохранён и будет применён, когда исходные данные позволят продолжить склон.';
 const lowerLevelWarning =
     'Уровень воды снизился. Расчёт выполнен по водной части исходного профиля с новыми урезами. Исходные промеры сохранены; новое положение уровня показано пунктиром.';
 const higherLevelWarning =
-    'Уровень воды повысился. Выберите способ достраивания каждого берега. Достроенные участки являются расчётным предположением; исходные промеры сохранены.';
+    'Уровень воды повысился. Выберите способ достраивания каждого берега. Исходные промеры не изменятся.';
+
+const undefinedDischargeWarning =
+    'Расход не определён: при текущем уровне воды не осталось скоростных вертикалей в воде. Исходные данные сохранены.';
+
+const obsoleteGeometryWarnings45 = <String>[
+  'В створе обнаружены промеры с нулевой глубиной. Проверьте исходные данные. Если они соответствуют суше между разными рукавами в створе, выполните отдельное измерение для каждого рукава или выберите другой створ. Текущая версия приложения не умеет выполнять расчёты для нескольких рукавов в створе.',
+  'После учёта изменения уровня воды скоростные вертикали оказались на осушившемся участке. Проверьте уровни воды и исходные данные. Расчёт расхода недоступен, пока эти вертикали отмечены как скоростные. Введённые значения сохранены.',
+  'После учёта изменения уровня воды в створе образовалось несколько отдельных водных участков. Текущая версия приложения не поддерживает общий расчёт расхода для такого сечения. Проверьте исходные данные. Если разделение соответствует действительности, выполните отдельное измерение для каждого рукава или выберите другой створ. Введённые значения сохранены.',
+  'Невозможно продолжить крайний склон выбранного берега. Для экстраполяции нужны нулевая глубина на исходном урезе и увеличивающаяся к руслу глубина соседнего промера. Выберите вертикальный берег или проверьте промеры.',
+  'Уровень воды снизился. Расчёт выполнен по водной части исходного профиля с новыми урезами. Исходные промеры сохранены; новое положение уровня показано пунктиром.',
+  'Уровень воды повысился. Выберите способ достраивания каждого берега. Достроенные участки являются расчётным предположением; исходные промеры сохранены.',
+];
 
 void updateZeroWarning(WdcMeasurement m) {
   m.warnings.removeWhere(
-    (w) => [
-      zeroDepthWarning,
-      drySpeedWarning,
-      splitSectionWarning,
-      invalidSlopeWarning,
-      lowerLevelWarning,
-      higherLevelWarning,
-    ].contains(w),
+    (w) =>
+        obsoleteGeometryWarnings45.contains(w) ||
+        [
+          undefinedDischargeWarning,
+          zeroDepthWarning,
+          drySpeedWarning,
+          splitSectionWarning,
+          invalidSlopeWarning,
+          lowerLevelWarning,
+          higherLevelWarning,
+        ].any((base) => w == base || w.startsWith('$base\n')),
   );
   if (m.verticals.any((v) => v.bank == null && v.avgDepth == 0)) {
     m.warnings.add(zeroDepthWarning);
@@ -63,11 +78,12 @@ class WetSegment44 {
 }
 
 class Geometry44 {
-  Geometry44(this.points, this.wet, this.delta, this.invalidSlope);
+  Geometry44(this.points, this.wet, this.delta, this.fallbackBanks);
   final List<SectionPoint44> points;
   final List<WetSegment44> wet;
   final double delta;
-  final bool invalidSlope;
+  final List<String> fallbackBanks;
+  bool get invalidSlope => fallbackBanks.isNotEmpty;
   int get waterBodies {
     var count = 0;
     WetSegment44? previous;
@@ -83,13 +99,13 @@ class Geometry44 {
   }
 }
 
-Geometry44 sectionGeometry44(WdcMeasurement m) {
-  final delta = levelDelta(m) ?? 0;
+Geometry44 sectionGeometry44(WdcMeasurement m, {double? deltaOverride}) {
+  final delta = deltaOverride ?? levelDelta(m) ?? 0;
   final points = m.verticals
       .map((v) => SectionPoint44(v.distance ?? 0, v.avgDepth ?? 0))
       .toList();
   final rows = List.generate(points.length, (i) => i);
-  var invalid = false;
+  final fallbackBanks = <String>[];
   if (points.length >= 2 && delta > 0) {
     // Directions follow the labelled banks, including decreasing chainages.
     for (final left in [true, false]) {
@@ -100,7 +116,7 @@ Geometry44 sectionGeometry44(WdcMeasurement m) {
       final dx = bank.x - near.x;
       final dh = near.depth - bank.depth;
       if (bank.depth != 0 || dh <= 0 || dx == 0) {
-        invalid = true;
+        fallbackBanks.add(left ? 'ЛБ' : 'ПБ');
         continue;
       }
       final outer = SectionPoint44(bank.x + dx * delta / dh, -delta);
@@ -128,7 +144,7 @@ Geometry44 sectionGeometry44(WdcMeasurement m) {
     }
     wet.add(WetSegment44(a, b, ha, hb, rows[i]));
   }
-  return Geometry44(points, wet, delta, invalid);
+  return Geometry44(points, wet, delta, fallbackBanks);
 }
 
 void calculateGeometry44(WdcMeasurement m) {
@@ -166,23 +182,31 @@ void calculateGeometry44(WdcMeasurement m) {
   m.hydraulicRadius = perimeter > 0 ? roundTo(area / perimeter, 3) : null;
   if (g.delta > 0) m.warnings.add(higherLevelWarning);
   if (g.delta < 0) m.warnings.add(lowerLevelWarning);
-  if (g.invalidSlope) m.warnings.add(invalidSlopeWarning);
-  if (m.verticals.any(
-    (v) => v.isSpeedVertical && (v.correctedDepth ?? 0) <= 0,
-  )) {
-    m.warnings.add(drySpeedWarning);
+  if (g.invalidSlope) {
+    m.warnings.add('$invalidSlopeWarning\n${g.fallbackBanks.join(', ')}');
+  }
+  final dry = m.verticals
+      .where(
+        (v) =>
+            v.isSpeedVertical && v.bank == null && (v.correctedDepth ?? 0) <= 0,
+      )
+      .toList();
+  if (dry.isNotEmpty) {
+    m.warnings.add(
+      '$drySpeedWarning\nРасстояния: ${dry.map((v) => '${inputNumber(v.distance)} м').join(', ')}',
+    );
   }
   if (g.waterBodies > 1) m.warnings.add(splitSectionWarning);
-  if (calculationBlock44(m) != null) return;
-  _computeVelocitySections(m);
+  _computeVelocitySections(m, excludeDry: true);
+  if (!m.verticals.any(
+    (v) => v.isSpeedVertical && v.bank == null && (v.correctedDepth ?? 0) > 0,
+  )) {
+    m.warnings.add(undefinedDischargeWarning);
+  }
 }
 
-String? calculationBlock44(WdcMeasurement m) {
-  for (final w in [invalidSlopeWarning, drySpeedWarning, splitSectionWarning]) {
-    if (m.warnings.contains(w)) return w;
-  }
-  return null;
-}
+// Geometry limitations are reported, never silently converted to a zero discharge.
+String? calculationBlock44(WdcMeasurement m) => null;
 
 bool canMeasureSpeed44(VerticalPoint v) =>
     v.bank == null && (v.avgDepth ?? 0) > 0;
@@ -226,7 +250,7 @@ class Warning44 extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Card(
     color: Theme.of(context).brightness == Brightness.dark
-        ? const Color(0xFF472F36)
+        ? const Color(0xFF392D31)
         : const Color(0xFFFFEBEE),
     child: Padding(
       padding: const EdgeInsets.all(12),
@@ -245,6 +269,16 @@ class Warning44 extends StatelessWidget {
 
 String bankMode44(bool slope) =>
     tr(slope ? 'Продолжить крайний склон' : 'Вертикальный берег');
+
+String appliedBankMode45(WdcMeasurement m, bool left) {
+  final requested = left ? m.leftExtrapolation : m.rightExtrapolation;
+  final fallback =
+      m.geometry44 &&
+      sectionGeometry44(m).fallbackBanks.contains(left ? 'ЛБ' : 'ПБ');
+  return fallback
+      ? '${bankMode44(false)} (${tr('вместо продолжения склона')})'
+      : bankMode44(requested);
+}
 
 class LevelOptions44 extends StatelessWidget {
   const LevelOptions44({super.key, required this.m, required this.onChanged});
@@ -364,7 +398,7 @@ class ProfilePainter44 extends CustomPainter {
         left + (invert ? maxX - x : x - minX) / math.max(.001, maxX - minX) * w;
     double sy(double y) => top + (y - minY) / math.max(.001, maxY - minY) * h;
     final ink = dark ? Colors.white : Colors.black87;
-    final bedColor = dark ? const Color(0xFFD7B49E) : Colors.brown.shade700;
+    final bedColor = dark ? const Color(0xFFB9855B) : Colors.brown.shade700;
     final helper = CrossSectionPainter(measurement: m);
     void text(
       String t,
@@ -427,22 +461,28 @@ class ProfilePainter44 extends CustomPainter {
             ..color = dark ? const Color(0xFF214557) : const Color(0xFFDCF3FD),
         );
       }
-      c.drawLine(
-        Offset(left, sy(0)),
-        Offset(left + w, sy(0)),
-        Paint()
-          ..color = Colors.blue
-          ..strokeWidth = 1.4,
-      );
+      for (final s in sectionGeometry44(m, deltaOverride: 0).wet) {
+        c.drawLine(
+          Offset(sx(s.a.x), sy(0)),
+          Offset(sx(s.b.x), sy(0)),
+          Paint()
+            ..color = Colors.blue
+            ..strokeWidth = 1.4,
+        );
+      }
       if (delta != 0) {
-        for (var x = left; x < left + w; x += 10) {
-          c.drawLine(
-            Offset(x, sy(-delta)),
-            Offset(math.min(x + 6, left + w), sy(-delta)),
-            Paint()
-              ..color = dark ? Colors.lightBlueAccent : Colors.blue.shade800
-              ..strokeWidth = 1.8,
-          );
+        for (final s in g.wet) {
+          final from = math.min(sx(s.a.x), sx(s.b.x));
+          final to = math.max(sx(s.a.x), sx(s.b.x));
+          for (var x = from; x < to; x += 10) {
+            c.drawLine(
+              Offset(x, sy(-delta)),
+              Offset(math.min(x + 6, to), sy(-delta)),
+              Paint()
+                ..color = dark ? Colors.lightBlueAccent : Colors.blue.shade800
+                ..strokeWidth = 1.8,
+            );
+          }
         }
         final label = TextPainter(
           text: TextSpan(
@@ -713,6 +753,18 @@ List<Object?> csvExtras44(
         ? jsonEncode({
             'reference': 'original_depth_m',
             'level_delta_m': g.delta,
+            'fallback_banks': g.fallbackBanks,
+            'excluded_velocity_vertical_ids': m.verticals
+                .where(
+                  (v) =>
+                      m.levelCorrection != null &&
+                      v.isSpeedVertical &&
+                      v.bank == null &&
+                      (v.correctedDepth ?? 0) <= 0,
+                )
+                .map((v) => v.id)
+                .toList(),
+            'discharge_defined': m.discharge != null,
             'points': g.points
                 .map((p) => {'distance_m': p.x, 'depth_m': p.depth})
                 .toList(),
@@ -735,6 +787,8 @@ List<Object?> csvExtras44(
 String csvHeader44(String label) => label;
 
 const english44 = <String, String>{
+  undefinedDischargeWarning:
+      'Discharge not determined: no velocity verticals remain submerged at the current water level. The original data are preserved.',
   'Глубина с поправкой, м': 'Corrected depth, m',
   "Фото": "Photos",
   "Подпись к фото": "Photo caption",
@@ -768,7 +822,7 @@ const english44 = <String, String>{
       "Link copied. Open it in your browser.",
   "Толщина льда, см": "Ice thickness, cm",
   "Толщина льда": "Ice thickness",
-  "Рабочая глубина, м": "Effective depth, m",
+  "Рабочая глубина, м": "Effective water depth, m",
   "Необязательно": "Optional",
   "Допишите толщину льда на вертикалях":
       "Enter the missing ice thickness at verticals",
@@ -791,19 +845,19 @@ const english44 = <String, String>{
   "Вы пытаетесь изменить глубину на скоростной вертикали с введёнными скоростями. Эти скорости будут удалены, если вы нажмёте «Да».":
       "You are changing the depth at a vertical with recorded velocities. These velocities will be deleted if you select Yes.",
   zeroDepthWarning:
-      "Internal zero-depth soundings were found in the cross section. Check the input data. If they represent dry land between different channels, measure each channel separately or choose another cross section. This version does not support discharge calculation for multiple channels in one cross section.",
+      "Zero-depth soundings were found within the cross section. Check the input data. If they represent dry land between channels, measure each channel separately or choose another cross section. The combined calculation does not account for separate channels or their bank coefficients.",
   drySpeedWarning:
-      "After accounting for the water-level change, velocity verticals lie in a dry part of the cross section. Check water levels and observations. Discharge cannot be calculated while these verticals are designated as velocity verticals. All entered values have been preserved.",
+      "Dry velocity verticals are excluded from the discharge calculation at the current water level. Recorded velocities and vertical designations are preserved. These verticals will be included again when the water level rises above them.",
   splitSectionWarning:
-      "After accounting for the water-level change, the cross section contains separate water bodies. This version does not support a combined discharge calculation for this section. Check the inputs. If this separation is real, measure each channel separately or choose another section. All entered values have been preserved.",
+      "The cross section contains separate water bodies. The combined calculation does not account for individual channels or their bank coefficients; velocities may be averaged between verticals on opposite sides of dry land. The result has methodological limitations. Separate measurements are recommended for each channel.",
   invalidSlopeWarning:
-      "The selected bank slope cannot be extended. Extrapolation requires zero depth at the original water edge and increasing depth towards the neighbouring sounding. Select a vertical bank or check the observations.",
+      "The bank slope cannot be extended. The calculation uses a vertical bank instead. The selected method is retained and will be applied when the input data allow the slope to be extended.",
   lowerLevelWarning:
       "The water level has fallen. Calculations use the submerged part of the original profile and new water edges. Original soundings are preserved; the new water level is shown as a dashed line.",
   higherLevelWarning:
-      "The water level has risen. Select an extrapolation method for each bank. Extended sections are an assumption; original observations are preserved.",
+      "The water level has risen. Select how to extend each bank. The original soundings will not be changed.",
   rotorHelp44:
-      "The current-meter rotor diameter does not affect discharge calculation. It is used only to suggest measuring horizons recommended by MI 1759-87 according to h/D, where h is the effective depth and D is the rotor diameter.",
+      "The current-meter rotor diameter does not affect discharge calculation. It is used only to suggest measurement depths recommended by MI 1759-87 according to h/D, where h is the effective depth and D is the rotor diameter.",
 };
 
 String csvVelocity44(String key) => key == 'surface'

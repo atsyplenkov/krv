@@ -213,60 +213,63 @@ void main() {
     expect(m.area, 2.25);
     expect(m.width, 3);
   });
-  test('Dry speed vertical blocks final Q without deleting any speeds', () {
+  test('All dry speed verticals leave Q undefined without deleting speeds', () {
     final m = triangle(delta: -2);
     expect(m.discharge, isNull);
-    expect(m.warnings, contains(drySpeedWarning));
+    expect(m.warnings, contains(startsWith(drySpeedWarning)));
     expect(m.verticals[1].u06.value, 1);
     expect(m.verticals[1].isSpeedVertical, isTrue);
     m.levelVelocityStart = 0;
     m.levelVelocityEnd = 0;
     recalcAll(m, finalCalculation: true);
     expect(m.discharge, 2.8);
-    expect(m.warnings, isNot(contains(drySpeedWarning)));
-  });
-  test('Falling water splits a shallow saddle and blocks Q', () {
-    final m = sample()
-      ..geometry44 = true
-      ..levelVelocityStart = -1
-      ..levelVelocityEnd = -1;
-    m.verticals = List.generate(
-      5,
-      (i) => VerticalPoint(
-        id: 'p$i',
-        bank: i == 0
-            ? 'ЛБ'
-            : i == 4
-            ? 'ПБ'
-            : null,
-        distance: i.toDouble(),
-        depth1: [0, 2, .5, 2, 0][i].toDouble(),
-        isSpeedVertical: i == 1 || i == 3,
-        u06: VelocityPoint(value: i == 1 || i == 3 ? 1 : null),
-      ),
-    );
-    recalcAll(m, finalCalculation: true);
-    expect(m.warnings, contains(splitSectionWarning));
-    expect(m.discharge, isNull);
-    expect(sectionGeometry44(m).waterBodies, 2);
-    m.levelVelocityStart = 0;
-    m.levelVelocityEnd = 0;
-    recalcAll(m, finalCalculation: true);
-    expect(m.warnings, isNot(contains(splitSectionWarning)));
-    expect(m.discharge, isNotNull);
+    expect(m.warnings, isNot(contains(startsWith(drySpeedWarning))));
   });
   test(
-    'Invalid flat bank extrapolation blocks Q and never generates infinity',
+    'Falling water splits a shallow saddle and warns without blocking Q',
+    () {
+      final m = sample()
+        ..geometry44 = true
+        ..levelVelocityStart = -1
+        ..levelVelocityEnd = -1;
+      m.verticals = List.generate(
+        5,
+        (i) => VerticalPoint(
+          id: 'p$i',
+          bank: i == 0
+              ? 'ЛБ'
+              : i == 4
+              ? 'ПБ'
+              : null,
+          distance: i.toDouble(),
+          depth1: [0, 2, .5, 2, 0][i].toDouble(),
+          isSpeedVertical: i == 1 || i == 3,
+          u06: VelocityPoint(value: i == 1 || i == 3 ? 1 : null),
+        ),
+      );
+      recalcAll(m, finalCalculation: true);
+      expect(m.warnings, contains(splitSectionWarning));
+      expect(m.discharge, closeTo(.7 * .5 + 2 / 3, .000002));
+      expect(sectionGeometry44(m).waterBodies, 2);
+      m.levelVelocityStart = 0;
+      m.levelVelocityEnd = 0;
+      recalcAll(m, finalCalculation: true);
+      expect(m.warnings, isNot(contains(splitSectionWarning)));
+      expect(m.discharge, isNotNull);
+    },
+  );
+  test(
+    'Invalid flat bank extrapolation uses vertical bank and never generates infinity',
     () {
       final m = triangle(delta: 1, left: true);
       m.verticals.insert(1, VerticalPoint(id: 'flat', distance: 1, depth1: 0));
       recalcAll(m, finalCalculation: true);
-      expect(m.discharge, isNull);
-      expect(m.warnings, contains(invalidSlopeWarning));
+      expect(m.discharge, closeTo(4.9, .000001));
+      expect(m.warnings, contains(startsWith(invalidSlopeWarning)));
       expect(m.area!.isFinite, isTrue);
       m.leftExtrapolation = false;
       recalcAll(m, finalCalculation: true);
-      expect(m.warnings, isNot(contains(invalidSlopeWarning)));
+      expect(m.warnings, isNot(contains(startsWith(invalidSlopeWarning))));
     },
   );
   test('Ice thickness is independent of effective depth and discharge', () {
@@ -447,21 +450,25 @@ void main() {
       expect(levelDelta(m), isNull);
     },
   );
-  test('Exports with identical titles and dates keep separate contents', () async {
-    final first = triangle()..comment = 'FIRST ORIGINAL';
-    final second = WdcMeasurement.fromJson(first.toJson())..comment = 'SECOND ORIGINAL';
-    final a = await WdcStorage.instance.exportCsv(first);
-    final b = await WdcStorage.instance.exportCsv(second);
-    expect(a.path, isNot(b.path));
-    expect(a.uri.pathSegments.last, b.uri.pathSegments.last);
-    expect(await a.readAsString(), contains('FIRST ORIGINAL'));
-    expect(await a.readAsString(), isNot(contains('SECOND ORIGINAL')));
-    expect(await b.readAsString(), contains('SECOND ORIGINAL'));
-    final pa = await WdcStorage.instance.exportPdf(first);
-    final pb = await WdcStorage.instance.exportPdf(second);
-    expect(pa.path, isNot(pb.path));
-    expect(await pa.readAsBytes(), isNot(await pb.readAsBytes()));
-  });
+  test(
+    'Exports with identical titles and dates keep separate contents',
+    () async {
+      final first = triangle()..comment = 'FIRST ORIGINAL';
+      final second = WdcMeasurement.fromJson(first.toJson())
+        ..comment = 'SECOND ORIGINAL';
+      final a = await WdcStorage.instance.exportCsv(first);
+      final b = await WdcStorage.instance.exportCsv(second);
+      expect(a.path, isNot(b.path));
+      expect(a.uri.pathSegments.last, b.uri.pathSegments.last);
+      expect(await a.readAsString(), contains('FIRST ORIGINAL'));
+      expect(await a.readAsString(), isNot(contains('SECOND ORIGINAL')));
+      expect(await b.readAsString(), contains('SECOND ORIGINAL'));
+      final pa = await WdcStorage.instance.exportPdf(first);
+      final pb = await WdcStorage.instance.exportPdf(second);
+      expect(pa.path, isNot(pb.path));
+      expect(await pa.readAsBytes(), isNot(await pb.readAsBytes()));
+    },
+  );
   test('Published version and citation agree with the build manifest', () {
     final yaml = File('pubspec.yaml').readAsStringSync();
     expect(yaml, contains('version: ${Project44.version}+${Project44.build}'));

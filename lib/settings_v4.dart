@@ -144,6 +144,80 @@ class _SettingsScreenState extends State<SettingsScreen>
     super.dispose();
   }
 
+  final storage = WdcStorage.instance;
+  bool _transferring = false;
+  Future<void> _importKrv() async {
+    if (_transferring) return;
+    setState(() => _transferring = true);
+    KrvImportPlan? plan;
+    Directory? incoming;
+    VoidCallback? close;
+    try {
+      // Android document providers may expose a custom extension as octet-stream.
+      // Validate the actual archive, rather than hiding it using a MIME filter.
+      final selected = await fs.openFile();
+      if (selected == null || !mounted) return;
+      // Android may return a content URI ending in a document ID, not the
+      // display filename. Recognize KRV by its validated manifest and contents.
+      if (await selected.length() >
+          KrvTransfer.maxTotal + KrvTransfer.maxManifest) {
+        throw const KrvException(
+          'Архив слишком большой. Выберите меньше измерений.',
+        );
+      }
+      if (!mounted) return;
+      close = showWorkProgress(context, tr('Проверяем архив…'));
+      await storage.flush();
+      final base = (await storage._baseDir).path;
+      final temp = (await getTemporaryDirectory()).path;
+      incoming = await Directory(temp).createTemp('krv-incoming-');
+      final path = '${incoming.path}/input.krv';
+      await selected.saveTo(path);
+      plan = await KrvTransfer.inspectInBackground(path, base, temp);
+      close();
+      close = null;
+      if (!mounted) return;
+      final accepted = await showDialog<bool>(
+        context: context,
+        builder: (context) => KrvSummaryDialog(plan: plan!),
+      );
+      if (accepted != true || !mounted) return;
+      close = showWorkProgress(context, tr('Добавляем измерения…'));
+      final approved = plan;
+      await KrvTransfer.commitInBackground(approved, base);
+      close();
+      close = null;
+      if (mounted) {
+        showSnack(
+          context,
+          '${tr('Добавлено измерений')}: ${approved.records.length}',
+        );
+      }
+    } catch (e) {
+      close?.call();
+      close = null;
+      if (mounted) {
+        showSnack(
+          context,
+          e is KrvException
+              ? tr(e.message)
+              : tr('Импорт не выполнен. Исходные измерения сохранены.'),
+        );
+      }
+    } finally {
+      close?.call();
+      try {
+        await plan?.dispose();
+        if (incoming != null && await incoming.exists()) {
+          await incoming.delete(recursive: true);
+        }
+      } on FileSystemException {
+        /* Temporary files are not measurement data. */
+      }
+      if (mounted) setState(() => _transferring = false);
+    }
+  }
+
   bool saving = false;
   bool get dirty => saved != jsonEncode(draft.toJson());
   @override
@@ -173,7 +247,7 @@ class _SettingsScreenState extends State<SettingsScreen>
               ),
             ),
             Text(
-              tr('Калькулятор расходов воды 4.4'),
+              tr('Калькулятор расходов воды 4.5'),
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.titleLarge,
             ),
@@ -212,6 +286,13 @@ class _SettingsScreenState extends State<SettingsScreen>
                 previewTheme44 = value;
                 AppSettings.revision.value++;
               },
+            ),
+            ListTile(
+              key: const ValueKey('import-krv'),
+              contentPadding: EdgeInsets.zero,
+              title: Text(tr('Импортировать файл .krv')),
+              trailing: const Icon(Icons.move_to_inbox_outlined),
+              onTap: _transferring ? null : _importKrv,
             ),
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
@@ -718,6 +799,7 @@ class _VelocityEditorState extends State<VelocityEditor>
                       : 'Индивидуальный метод',
                 ),
               ),
+              subtitle: Text(presetTitle(v.effectiveConfig!.preset)),
               trailing: const Icon(Icons.settings_outlined),
               onTap: () async {
                 await Navigator.push(
@@ -759,6 +841,11 @@ class _VelocityEditorState extends State<VelocityEditor>
             ],
             selected: {fromBottom},
             onSelectionChanged: (s) => setState(() => fromBottom = s.first),
+          ),
+          const SizedBox(height: 16),
+          NotationText(
+            '${tr('Uср')}: ${v.avgVelocity == null ? tr('н/д') : _numCell(v.avgVelocity, 4)} ${tr('м/с')}',
+            style: Theme.of(context).textTheme.titleLarge,
           ),
           const SizedBox(height: 16),
           for (final key in velocityKeys.where(
@@ -826,10 +913,6 @@ class _VelocityEditorState extends State<VelocityEditor>
                 ],
               ),
             ),
-          NotationText(
-            '${tr('Uср')}: ${v.avgVelocity == null ? tr('н/д') : _numCell(v.avgVelocity, 4)} ${tr('м/с')}',
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
         ],
       ),
     ),

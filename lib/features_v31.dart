@@ -632,7 +632,7 @@ Future<List<int>> pdfBytes(WdcMeasurement m) async {
     mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
     children: [
       pw.Text(
-        tr('Калькулятор расходов воды · 4.4'),
+        tr('Калькулятор расходов воды · 4.5'),
         style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700),
       ),
       pw.Image(logo, width: 52, height: 42, fit: pw.BoxFit.contain),
@@ -674,8 +674,8 @@ Future<List<int>> pdfBytes(WdcMeasurement m) async {
     ],
     [tr('Поправка уровня, м'), _numCell(m.levelCorrection, 3)],
     if (m.geometry44 && (m.levelCorrection ?? 0) > 0) ...[
-      [tr('Способ достраивания ЛБ'), bankMode44(m.leftExtrapolation)],
-      [tr('Способ достраивания ПБ'), bankMode44(m.rightExtrapolation)],
+      [tr('Способ достраивания ЛБ'), appliedBankMode45(m, true)],
+      [tr('Способ достраивания ПБ'), appliedBankMode45(m, false)],
     ],
     [tr('Коэффициент ЛБ'), _numCell(m.bankCoeffLeft, 2)],
     [tr('Коэффициент ПБ'), _numCell(m.bankCoeffRight, 2)],
@@ -718,7 +718,9 @@ Future<List<int>> pdfBytes(WdcMeasurement m) async {
         ),
         pw.SizedBox(height: 8),
         pw.Text(
-          '${tr('Расход воды')}: ${_numCell(m.discharge, 6)} ${tr('м³/с')}',
+          m.discharge == null
+              ? tr('Расход не определён')
+              : '${tr('Расход воды')}: ${_numCell(m.discharge, 6)} ${tr('м³/с')}',
           style: pw.TextStyle(fontSize: 15, fontWeight: pw.FontWeight.bold),
         ),
         pw.SizedBox(height: 6),
