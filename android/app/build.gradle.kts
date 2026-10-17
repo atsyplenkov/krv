@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
@@ -5,7 +7,41 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+
+// This private file stays outside the checkout. Preserve the original certificate
+// so existing installations can update without uninstalling or losing local data.
+val signingPropertiesFile = file(
+    System.getenv("KRV_SIGNING_PROPERTIES")
+        ?: "${System.getProperty("user.home")}/.krv-signing/signing.properties"
+)
+val releaseSigning = Properties()
+if (signingPropertiesFile.isFile) {
+    signingPropertiesFile.inputStream().use { releaseSigning.load(it) }
+    for (key in listOf("storeFile", "storePassword", "keyAlias", "keyPassword")) {
+        require(!releaseSigning.getProperty(key).isNullOrBlank()) {
+            "Missing signing property: $key"
+        }
+    }
+}
+gradle.taskGraph.whenReady {
+    if (allTasks.any { it.project == project && it.name.contains("Release") }) {
+        check(signingPropertiesFile.isFile) {
+            "Release signing is required. Set KRV_SIGNING_PROPERTIES; see docs/ANDROID_RELEASE.md."
+        }
+    }
+}
+
 android {
+    signingConfigs {
+        if (signingPropertiesFile.isFile) {
+            create("krvRelease") {
+                storeFile = file(releaseSigning.getProperty("storeFile"))
+                storePassword = releaseSigning.getProperty("storePassword")
+                keyAlias = releaseSigning.getProperty("keyAlias")
+                keyPassword = releaseSigning.getProperty("keyPassword")
+            }
+        }
+    }
     namespace = "krv.app"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
@@ -34,9 +70,9 @@ android {
 
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            if (signingPropertiesFile.isFile) {
+                signingConfig = signingConfigs.getByName("krvRelease")
+            }
         }
     }
 }
