@@ -248,11 +248,18 @@ void main() {
         '1',
       );
       expect(m.levelVelocityStartAt, isNull);
-      await tester.runAsync(() async {
-        await tester.tap(find.text('Ввести'));
-        await Future<void>.delayed(const Duration(milliseconds: 200));
-      });
-      await settleIo(tester);
+      await tester.tap(find.text('Ввести'));
+      // Navigation awaits a real disk write; CI runners can take longer than
+      // a fixed delay. Wait for the observable result with a bounded timeout.
+      final deadline = DateTime.now().add(const Duration(seconds: 10));
+      while (find.byType(VelocityEditor).evaluate().isEmpty &&
+          DateTime.now().isBefore(deadline)) {
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 50)),
+        );
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+      await tester.pumpAndSettle();
       expect(find.byType(VelocityEditor), findsOneWidget);
       await tester.enterText(
         find.byKey(const ValueKey('velocity-surface')),
