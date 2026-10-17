@@ -75,3 +75,4 @@ local.properties
 
 # Signing secrets (normally stored outside this repository)
 signing.properties
+__pycache__/

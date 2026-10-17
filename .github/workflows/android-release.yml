@@ -1,0 +1,87 @@
+name: Signed Android release
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: android-release-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  build:
+    if: github.repository == 'olegegka/krv' && (github.ref_type == 'tag' || github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Validate version and release ancestry
+        run: python3 tool/android_release.py version
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          flutter-version: '3.41.6'
+          channel: stable
+          cache: true
+      - run: python3 -m unittest discover -s tool -p test_*.py
+      - run: flutter pub get --enforce-lockfile
+      - run: dart format --output=none --set-exit-if-changed lib test
+      - run: flutter analyze --no-pub
+      - run: flutter test --no-pub --concurrency=1 --reporter expanded
+      - name: Build with preserved signing identity
+        env:
+          KRV_KEYSTORE_BASE64: ${{ secrets.KRV_KEYSTORE_BASE64 }}
+          KRV_STORE_PASSWORD: ${{ secrets.KRV_STORE_PASSWORD }}
+          KRV_KEY_PASSWORD: ${{ secrets.KRV_KEY_PASSWORD }}
+          KRV_KEY_ALIAS: ${{ secrets.KRV_KEY_ALIAS }}
+          KRV_SIGNING_PROPERTIES: ${{ runner.temp }}/krv-signing/signing.properties
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          trap 'rm -rf "$RUNNER_TEMP/krv-signing"' EXIT
+          python3 tool/android_release.py signing
+          flutter build apk --release --no-pub
+      - name: Verify APK identity and prepare downloads
+        run: python3 tool/android_release.py apk
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: signed-apk
+          path: dist/
+          if-no-files-found: error
+          retention-days: 14
+  publish:
+    if: github.event_name == 'push' && github.ref_type == 'tag'
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: signed-apk
+          path: dist
+      - name: Publish verified assets through a draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd dist
+          sha256sum --check SHA256SUMS.txt
+          if gh release view "$RELEASE_TAG" --json isDraft > release-state.json; then
+            python3 -c 'import json; assert json.load(open("release-state.json"))["isDraft"], "Published releases must not be overwritten"'
+          else
+            gh release create "$RELEASE_TAG" --verify-tag --draft --title "КРВ / WDC ${RELEASE_TAG#v}" --generate-notes --notes "Signed APK for krv.app. The existing signing certificate is preserved for compatible updates. See docs/ANDROID_RELEASE.md for Obtainium and backup instructions."
+          fi
+          gh release upload "$RELEASE_TAG" ./*.apk SHA256SUMS.txt build-info.json --clobber
+          gh release edit "$RELEASE_TAG" --draft=false --latest
