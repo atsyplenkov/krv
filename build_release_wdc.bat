@@ -13,7 +13,7 @@ call dart run flutter_launcher_icons
 if errorlevel 1 goto :failed
 call flutter build apk --release
 if errorlevel 1 goto :failed
-set "WDC_OUTPUT=wdc_v4_5.apk"
+set "WDC_OUTPUT=wdc_v4_5_1.apk"
 copy /Y "build\app\outputs\flutter-apk\app-release.apk" "%WDC_OUTPUT%" >nul
 if errorlevel 1 goto :failed
 echo.

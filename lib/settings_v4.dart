@@ -247,7 +247,7 @@ class _SettingsScreenState extends State<SettingsScreen>
               ),
             ),
             Text(
-              tr('Калькулятор расходов воды 4.5'),
+              tr('Калькулятор расходов воды 4.5.1'),
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.titleLarge,
             ),

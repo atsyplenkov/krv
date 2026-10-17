@@ -28,7 +28,7 @@ void main() {
         () => Future<void>.delayed(const Duration(milliseconds: 120)),
       );
       await settleIo(tester);
-      expect(find.text('v4.5'), findsOneWidget);
+      expect(find.text('v4.5.1'), findsOneWidget);
       final context = tester.element(find.byType(HomeScreen));
       Navigator.of(context).push(
         MaterialPageRoute<void>(

@@ -1244,6 +1244,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen>
     with SettingsRefresh<HomeScreen> {
   final storage = WdcStorage.instance;
+  final _listController = ScrollController();
   List<WdcMeasurement> _all = [];
   bool _loading = true;
   bool _starting = false;
@@ -1280,6 +1281,7 @@ class _HomeScreenState extends State<HomeScreen>
   @override
   void dispose() {
     storage.savedMeasurement.removeListener(_onMeasurementSaved);
+    _listController.dispose();
     super.dispose();
   }
 
@@ -1303,7 +1305,9 @@ class _HomeScreenState extends State<HomeScreen>
   Future<void> _load() async {
     if (!mounted) return;
     final generation = ++_loadGeneration;
-    setState(() => _loading = true);
+    // Keep the existing list mounted while refreshing after navigation.
+    // Replacing it with a spinner discards its scroll position.
+    if (_all.isEmpty) setState(() => _loading = true);
     final all = await storage.loadAll();
     if (!mounted || generation != _loadGeneration) return;
     setState(() {
@@ -1614,7 +1618,7 @@ class _HomeScreenState extends State<HomeScreen>
               ? (compactToolbar
                     ? '${_selected.length}'
                     : '${tr('Выбрано')}: ${_selected.length}')
-              : 'v4.5',
+              : 'v4.5.1',
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
@@ -1742,6 +1746,8 @@ class _HomeScreenState extends State<HomeScreen>
           : RefreshIndicator(
               onRefresh: _load,
               child: ListView.builder(
+                key: const PageStorageKey('home-measurements'),
+                controller: _listController,
                 padding: const EdgeInsets.fromLTRB(12, 12, 12, 88),
                 itemCount: visible.length,
                 itemBuilder: (context, i) {

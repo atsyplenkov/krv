@@ -1,6 +1,6 @@
 # Калькулятор расходов воды / Water Discharge Calculator
 
-Версия **4.5.0+12**, Android applicationId: `krv.app`.
+Версия **4.5.1+13**, Android applicationId: `krv.app`.
 Автор: **Олег Лошков / Oleg Loshkov**. Лицензия: Apache License 2.0, полный текст в LICENSE.
 
 Приложение навайбкожено с помощью ИИ-ассистента.
@@ -40,7 +40,7 @@ This app was vibe-coded with the help of an AI assistant.
 ## Разработка и сборка
 
 Проверки: `flutter analyze`, `flutter test --concurrency=1`.
-Сборка: `build_release_wdc.bat`. Результат: `wdc_v4_5.apk`.
+Сборка: `build_release_wdc.bat`. Результат: `wdc_v4_5_1.apk`.
 Для запуска сценария без ожидания клавиши: `WDC_NONINTERACTIVE=1`.
 
 Этот выпуск публикует исходный код. Готовый APK к выпуску не прилагается: конфигурация сборки пока использует отладочную подпись. Для распространения APK необходимо отдельно настроить постоянный ключ и проверить совместимость обновления. Границы проверки описаны в VALIDATION.md; журналы не входят в Git.
@@ -83,7 +83,12 @@ Android device installation and production signing are not verified by the sourc
 
 ### Citation
 
-Loshkov, O. (2026). *Water Discharge Calculator* (Version 4.5.0) [Software].
-https://github.com/olegegka/krv/releases/tag/v4.5.0
+Loshkov, O. (2026). *Water Discharge Calculator* (Version 4.5.1) [Software].
+https://github.com/olegegka/krv/releases/tag/v4.5.1
 
 DOI has not been assigned. Cite the version used; do not treat the mutable main branch as a frozen release.
+
+## Исправления 4.5.1
+
+- Главный список сохраняет прокрутку после возврата из измерения.
+- Лицензии компонентов открываются стандартным экраном Flutter: один пункт на пакет и отдельный экран текста.
