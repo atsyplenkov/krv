@@ -9,6 +9,8 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart'
+    show LicenseRegistry, LicenseEntryWithLineBreaks;
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
@@ -26,9 +28,16 @@ part 'localization_v4.dart';
 part 'exports_v4.dart';
 part 'presentation_v41.dart';
 part 'transfer_v42.dart';
+part 'version_44.dart';
+part 'about_44.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  LicenseRegistry.addLicense(() async* {
+    yield LicenseEntryWithLineBreaks([
+      'Roboto',
+    ], await rootBundle.loadString('assets/fonts/LICENSE-Roboto.txt'));
+  });
   await AppSettings.load();
   runApp(const WaterDischargeApp());
 }
@@ -68,6 +77,31 @@ class _WaterDischargeAppState extends State<WaterDischargeApp>
         supportedLocales: const [Locale('ru'), Locale('en')],
         localizationsDelegates: GlobalMaterialLocalizations.delegates,
         title: tr('Калькулятор Расходов Воды'),
+        themeMode: switch (previewTheme44 ?? AppSettings.current.theme) {
+          'dark' => ThemeMode.dark,
+          'light' => ThemeMode.light,
+          _ => ThemeMode.system,
+        },
+        darkTheme: ThemeData(
+          useMaterial3: true,
+          brightness: Brightness.dark,
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: const Color(0xFF80C9EE),
+            brightness: Brightness.dark,
+          ),
+          scaffoldBackgroundColor: const Color(0xFF101B24),
+          inputDecorationTheme: InputDecorationTheme(
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+            filled: true,
+            fillColor: const Color(0xFF1A2B37),
+          ),
+          cardTheme: CardThemeData(
+            color: const Color(0xFF1A2B37),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(18),
+            ),
+          ),
+        ),
         theme: ThemeData(
           useMaterial3: true,
           colorScheme: ColorScheme.fromSeed(
@@ -254,6 +288,7 @@ Future<double?> editNumberDialog(
   String? helper,
   bool allowEmpty = false,
   ValueChanged<double?>? onValueChanged,
+  Future<bool> Function(double?)? beforeSave,
 }) async {
   final c = TextEditingController(text: inputNumber(initial));
   final result = await showDialog<({double? value})>(
@@ -273,10 +308,11 @@ Future<double?> editNumberDialog(
           final value = parseNumRu(text);
           if (value != null) onValueChanged?.call(value);
         },
-        onSubmitted: (_) {
+        onSubmitted: (_) async {
           final v = parseNumRu(c.text);
-          if (v == null && !allowEmpty) return;
-          Navigator.pop(context, (value: v));
+          if (v == null && (!allowEmpty || c.text.trim().isNotEmpty)) return;
+          if (beforeSave != null && !await beforeSave(v)) return;
+          if (context.mounted) Navigator.pop(context, (value: v));
         },
       ),
       actions: [
@@ -285,10 +321,11 @@ Future<double?> editNumberDialog(
           child: Text(tr('Отмена')),
         ),
         TextButton(
-          onPressed: () {
+          onPressed: () async {
             final v = parseNumRu(c.text);
-            if (v == null && !allowEmpty) return;
-            Navigator.pop(context, (value: v));
+            if (v == null && (!allowEmpty || c.text.trim().isNotEmpty)) return;
+            if (beforeSave != null && !await beforeSave(v)) return;
+            if (context.mounted) Navigator.pop(context, (value: v));
           },
           child: Text(tr('Сохранить')),
         ),
@@ -362,6 +399,7 @@ class VerticalPoint {
     this.depth2,
     this.depth2At,
     this.bottomType = '',
+    this.iceThicknessCm,
     this.isSpeedVertical = false,
     VelocityPoint? uSurface,
     VelocityPoint? u015,
@@ -399,6 +437,7 @@ class VerticalPoint {
   double? depth2;
   String? depth2At;
   String bottomType;
+  double? iceThicknessCm;
   bool isSpeedVertical;
 
   bool localSpecial;
@@ -472,6 +511,7 @@ class VerticalPoint {
     'depth2': depth2,
     'depth2At': depth2At,
     'bottomType': bottomType,
+    if (iceThicknessCm != null) 'iceThicknessCm': iceThicknessCm,
     'isSpeedVertical': isSpeedVertical,
     'localSpecial': localSpecial,
     'individualConfig': individualConfig?.toJson(),
@@ -502,6 +542,7 @@ class VerticalPoint {
     depth2: (json['depth2'] as num?)?.toDouble(),
     depth2At: json['depth2At'] as String?,
     bottomType: json['bottomType'] as String? ?? '',
+    iceThicknessCm: (json['iceThicknessCm'] as num?)?.toDouble(),
     isSpeedVertical: json['isSpeedVertical'] as bool? ?? false,
     localSpecial: json['localSpecial'] as bool? ?? false,
     individualConfig: json['individualConfig'] == null
@@ -539,6 +580,10 @@ class WdcMeasurement {
     CalculationConfig? initialCalculationConfig,
     bool initialConfigCaptured = false,
     this.iceCover = false,
+    this.geometry44 = false,
+    this.leftExtrapolation = false,
+    this.rightExtrapolation = false,
+    this.requireIceThickness = false,
     this.completed = false,
     this.river = '',
     this.site = '',
@@ -590,6 +635,10 @@ class WdcMeasurement {
   CalculationConfig? get initialCalculationConfig =>
       _initialCalculationConfig?.copy();
   bool iceCover;
+  bool geometry44;
+  bool leftExtrapolation;
+  bool rightExtrapolation;
+  bool requireIceThickness;
   void bindCalculation() {
     for (final v in verticals) {
       v.measurementConfig = calculationConfig;
@@ -656,7 +705,12 @@ class WdcMeasurement {
     'utcOffsetMinutes': utcOffsetMinutes,
     'calculationConfig': calculationConfig?.toJson(),
     'iceCover': iceCover,
-    'schemaVersion': 5,
+    'schemaVersion':
+        geometry44 || verticals.any((v) => v.iceThicknessCm != null) ? 6 : 5,
+    if (geometry44) 'geometry44': true,
+    if (geometry44) 'leftExtrapolation': leftExtrapolation,
+    if (geometry44) 'rightExtrapolation': rightExtrapolation,
+    if (requireIceThickness) 'requireIceThickness': true,
     if (archiveOriginId != null) 'archiveOriginId': archiveOriginId,
     if (importedCopy) 'importedCopy': true,
     'initialCalculationConfig': _initialCalculationConfig?.toJson(),
@@ -693,6 +747,8 @@ class WdcMeasurement {
   };
 
   factory WdcMeasurement.empty({double? lat, double? lon}) => WdcMeasurement(
+    geometry44: true,
+    requireIceThickness: true,
     id: uid(),
     createdAt: nowIso(),
     utcOffsetMinutes: DateTime.now().timeZoneOffset.inMinutes,
@@ -719,6 +775,10 @@ class WdcMeasurement {
     archiveOriginId: json['archiveOriginId'] as String?,
     importedCopy: json['importedCopy'] as bool? ?? false,
     iceCover: json['iceCover'] as bool? ?? false,
+    geometry44: json['geometry44'] == true,
+    leftExtrapolation: json['leftExtrapolation'] == true,
+    rightExtrapolation: json['rightExtrapolation'] == true,
+    requireIceThickness: json['requireIceThickness'] == true,
     completed: json['completed'] as bool? ?? false,
     river: json['river'] as String? ?? '',
     site: json['site'] as String? ?? '',
@@ -868,7 +928,8 @@ class WdcStorage {
     final temp = await getTemporaryDirectory();
     final name =
         '${sanitizeFilenamePart(m.river)}&${sanitizeFilenamePart(m.site)}&${fileDt(m.createdDate)}.csv';
-    final file = File('${temp.path}/$name');
+    final folder = await temp.createTemp('wdc-export-');
+    final file = File('${folder.path}/$name');
     await file.writeAsString(csvContent(m), flush: true);
     return file;
   }
@@ -878,7 +939,8 @@ class WdcStorage {
     final temp = await getTemporaryDirectory();
     final name =
         '${sanitizeFilenamePart(m.river)}_${sanitizeFilenamePart(m.site)}_${DateFormat('yyyy_MM_dd_HH_mm_ss').format(m.createdDate)}.pdf';
-    final file = File('${temp.path}/$name');
+    final folder = await temp.createTemp('wdc-export-');
+    final file = File('${folder.path}/$name');
     final bytes = await pdfBytes(m);
     await file.writeAsBytes(bytes, flush: true);
     return file;
@@ -899,133 +961,7 @@ String _csvCell(Object? value) {
 String _numCell(double? value, int digits) =>
     value == null ? '' : roundTo(value, digits).toStringAsFixed(digits);
 
-String csvContent(WdcMeasurement m) {
-  if (m.calculationConfig != null) return csvContentV4(m);
-  const bom = '\uFEFF';
-  final headers = <String>[
-    tr('Часовой пояс (UTC)'),
-    tr('Дата и время создания файла'),
-    tr('Название реки'),
-    tr('Название створа'),
-    tr('Уровень воды на начало промерных работ, м'),
-    tr('Начало промерных работ'),
-    tr('Уровень воды на конец промерных работ, м'),
-    tr('Конец промерных работ'),
-    tr('Уровень воды на начало измерения скоростей течения, м'),
-    tr('Начало измерения скоростей'),
-    tr('Уровень воды на конец измерения скоростей течения, м'),
-    tr('Конец измерения скоростей'),
-    tr('Средний уровень воды во время промерных работ, м'),
-    tr('Широта, °'),
-    tr('Долгота, °'),
-    tr('Лопастной диаметр вертушки, см'),
-    tr('Ширина водного сечения, м'),
-    tr('Площадь водного сечения потока, м2'),
-    tr('Средняя скорость потока, м/с'),
-    tr('Смоченный периметр между промерными вертикалями, м'),
-    tr('Смоченный периметр, м'),
-    tr('Средняя глубина, м'),
-    tr('Максимальная глубина, м'),
-    tr('Гидравлический радиус, м'),
-    tr('Береговой коэффициент (ЛБ)'),
-    tr('Береговой коэффициент (ПБ)'),
-    tr('Берег'),
-    tr('Тип дна'),
-    tr('Расстояние от постоянного начала, м'),
-    tr('Глубина на вертикали (1 измерение), м'),
-    tr('Дата и время 1 промера'),
-    tr('Глубина на вертикали (2 измерение), м'),
-    tr('Дата и время 2 промера'),
-    tr('Глубина на вертикали (средняя), м'),
-    tr('Площадь водного сечения между промерными вертикалями, м2'),
-    tr('U_пов, м/с'),
-    tr('Дата и время измерения U_пов'),
-    tr('U_0.2h, м/с'),
-    tr('Дата и время измерения U_0.2h'),
-    tr('U_0.6h, м/с'),
-    tr('Дата и время измерения U_0.6h'),
-    tr('U_0.8h, м/с'),
-    tr('Дата и время измерения U_0.8h'),
-    tr('U_дно, м/с'),
-    tr('Дата и время измерения U_дно'),
-    tr('U_ср, м/с'),
-    tr('Площадь отсеков водного сечения, м2'),
-    tr('Частичный расход воды, м3/с'),
-    tr('Расход воды, м3/с'),
-    tr('Комментарии'),
-    tr('Глубина на вертикали (средняя) с поправкой, м'),
-    tr('Площадь водного сечения между промерными вертикалями с поправкой, м2'),
-    tr('Средний уровень воды во время измерения скоростей, м'),
-    tr('Поправка уровня воды, м'),
-    tr('Предупреждения'),
-  ];
-
-  final rows = <List<String>>[headers];
-  for (final v in m.verticals) {
-    rows.add([
-      measurementTimeZone(m),
-      humanFromIso(m.createdAt),
-      m.river,
-      m.site,
-      _numCell(m.levelSoundingStart, 3),
-      humanFromIso(m.levelSoundingStartAt),
-      _numCell(m.levelSoundingEnd, 3),
-      humanFromIso(m.levelSoundingEndAt),
-      _numCell(m.levelVelocityStart, 3),
-      humanFromIso(m.levelVelocityStartAt),
-      _numCell(m.levelVelocityEnd, 3),
-      humanFromIso(m.levelVelocityEndAt),
-      _numCell(m.meanSoundingLevel, 3),
-      _numCell(m.latitude, 8),
-      _numCell(m.longitude, 8),
-      _numCell(m.rotorDiameter == null ? null : m.rotorDiameter! * 100, 2),
-      _numCell(m.width, 3),
-      _numCell(m.area, 6),
-      _numCell(m.meanFlowVelocity, 6),
-      _numCell(v.wettedBetween, 3),
-      _numCell(m.wettedPerimeter, 3),
-      _numCell(m.meanDepth, 3),
-      _numCell(m.maxDepth, 3),
-      _numCell(m.hydraulicRadius, 3),
-      _numCell(m.bankCoeffLeft, 2),
-      _numCell(m.bankCoeffRight, 2),
-      bankLabel(v.bank),
-      v.bottomType,
-      _numCell(v.distance, 3),
-      _numCell(v.depth1, 3),
-      humanFromIso(v.depth1At),
-      _numCell(v.depth2, 3),
-      humanFromIso(v.depth2At),
-      _numCell(v.avgDepth, 3),
-      _numCell(v.areaBetween, 6),
-      _numCell(v.uSurface.value, 4),
-      humanFromIso(v.uSurface.changedAt),
-      _numCell(v.u02.value, 4),
-      humanFromIso(v.u02.changedAt),
-      _numCell(v.u06.value, 4),
-      humanFromIso(v.u06.changedAt),
-      _numCell(v.u08.value, 4),
-      humanFromIso(v.u08.changedAt),
-      _numCell(v.uBottom.value, 4),
-      humanFromIso(v.uBottom.changedAt),
-      _numCell(v.avgVelocity, 4),
-      _numCell(v.sectionArea, 6),
-      _numCell(v.partialDischarge, 6),
-      _numCell(m.discharge, 6),
-      m.comment,
-      _numCell(v.correctedDepth, 3),
-      _numCell(v.correctedAreaBetween, 6),
-      _numCell(m.meanVelocityLevel, 3),
-      _numCell(m.levelCorrection, 3),
-      m.warnings.map(tr).join(' | '),
-    ]);
-  }
-  return '$bom${rows.map((r) => r.map(_csvCell).join(';')).join('\n')}';
-}
-
-// =============================
-// Calculations
-// =============================
+String csvContent(WdcMeasurement m) => csvContentV4(m);
 
 void sortLeftToRight(WdcMeasurement m) {
   final lb = m.leftBank;
@@ -1097,7 +1033,12 @@ void recalcAll(WdcMeasurement m, {bool finalCalculation = false}) {
     m.levelCorrection = roundTo(m.meanVelocityLevel! - m.meanSoundingLevel!, 3);
   }
 
+  updateZeroWarning(m);
   _computeGeometry(m, useCorrected: false);
+  if (finalCalculation && m.geometry44 && m.levelCorrection != null) {
+    calculateGeometry44(m);
+    return;
+  }
   if (finalCalculation && m.levelCorrection != null) {
     var hadNegative = false;
     for (final v in m.verticals) {
@@ -1177,17 +1118,19 @@ void _computeGeometry(WdcMeasurement m, {required bool useCorrected}) {
   if (totalWetted > 0) m.hydraulicRadius = roundTo(totalArea / totalWetted, 3);
 }
 
-void _computeVelocitySections(WdcMeasurement m) {
+void _computeVelocitySections(WdcMeasurement m, {bool excludeDry = false}) {
+  bool eligible(VerticalPoint v) =>
+      v.isSpeedVertical &&
+      v.bank == null &&
+      (!excludeDry || (v.correctedDepth ?? 0) > 0);
   if (m.calculationConfig != null &&
-      m.verticals.any(
-        (v) => v.isSpeedVertical && v.bank == null && v.avgVelocity == null,
-      )) {
+      m.verticals.any((v) => eligible(v) && v.avgVelocity == null)) {
     return;
   }
   final speedIndexes = <int>[];
   for (var i = 0; i < m.verticals.length; i++) {
     final v = m.verticals[i];
-    if (v.isSpeedVertical && v.bank == null && v.avgVelocity != null) {
+    if (eligible(v) && v.avgVelocity != null) {
       speedIndexes.add(i);
     }
   }
@@ -1470,7 +1413,7 @@ class _HomeScreenState extends State<HomeScreen>
       final path = await KrvTransfer.exportInBackground(base, records, temp);
       close();
       if (!mounted) return;
-      await Share.shareXFiles([
+      await shareFiles44([
         XFile(path, mimeType: 'application/octet-stream'),
       ], text: tr('Архив измерений КРВ'));
     } catch (e) {
@@ -1489,79 +1432,6 @@ class _HomeScreenState extends State<HomeScreen>
     }
   }
 
-  Future<void> _importKrv() async {
-    if (_transferring) return;
-    setState(() => _transferring = true);
-    KrvImportPlan? plan;
-    Directory? incoming;
-    VoidCallback? close;
-    try {
-      // Android document providers may expose a custom extension as octet-stream.
-      // Validate the actual archive, rather than hiding it using a MIME filter.
-      final selected = await fs.openFile();
-      if (selected == null || !mounted) return;
-      // Android may return a content URI ending in a document ID, not the
-      // display filename. Recognize KRV by its validated manifest and contents.
-      if (await selected.length() >
-          KrvTransfer.maxTotal + KrvTransfer.maxManifest) {
-        throw const KrvException(
-          'Архив слишком большой. Выберите меньше измерений.',
-        );
-      }
-      if (!mounted) return;
-      close = showWorkProgress(context, tr('Проверяем архив…'));
-      await storage.flush();
-      final base = (await storage._baseDir).path;
-      final temp = (await getTemporaryDirectory()).path;
-      incoming = await Directory(temp).createTemp('krv-incoming-');
-      final path = '${incoming.path}/input.krv';
-      await selected.saveTo(path);
-      plan = await KrvTransfer.inspectInBackground(path, base, temp);
-      close();
-      close = null;
-      if (!mounted) return;
-      final accepted = await showDialog<bool>(
-        context: context,
-        builder: (context) => KrvSummaryDialog(plan: plan!),
-      );
-      if (accepted != true || !mounted) return;
-      close = showWorkProgress(context, tr('Добавляем измерения…'));
-      final approved = plan;
-      await KrvTransfer.commitInBackground(approved, base);
-      close();
-      close = null;
-      await _load();
-      if (mounted) {
-        showSnack(
-          context,
-          '${tr('Добавлено измерений')}: ${approved.records.length}',
-        );
-      }
-    } catch (e) {
-      close?.call();
-      close = null;
-      if (mounted) {
-        showSnack(
-          context,
-          e is KrvException
-              ? tr(e.message)
-              : tr('Импорт не выполнен. Исходные измерения сохранены.'),
-        );
-      }
-    } finally {
-      close?.call();
-      try {
-        await plan?.dispose();
-        if (incoming != null && await incoming.exists()) {
-          await incoming.delete(recursive: true);
-        }
-      } on FileSystemException {
-        /* Temporary files are not measurement data. */
-      }
-      if (mounted) setState(() => _transferring = false);
-    }
-  }
-
   Future<void> _shareOne(WdcMeasurement m, {required bool pdf}) async {
     final close = showWorkProgress(
       context,
@@ -1570,7 +1440,7 @@ class _HomeScreenState extends State<HomeScreen>
     try {
       final f = pdf ? await storage.exportPdf(m) : await storage.exportCsv(m);
       close();
-      await Share.shareXFiles([
+      await shareFiles44([
         XFile(f.path),
       ], text: pdf ? tr('PDF-отчёт') : tr('CSV расчёта расхода воды'));
     } catch (_) {
@@ -1589,7 +1459,7 @@ class _HomeScreenState extends State<HomeScreen>
       final f = pdf ? await storage.exportPdf(m) : await storage.exportCsv(m);
       files.add(XFile(f.path));
     }
-    await Share.shareXFiles(
+    await shareFiles44(
       files,
       text: pdf
           ? tr('PDF-отчёты расчёта расхода воды')
@@ -1744,11 +1614,11 @@ class _HomeScreenState extends State<HomeScreen>
               ? (compactToolbar
                     ? '${_selected.length}'
                     : '${tr('Выбрано')}: ${_selected.length}')
-              : 'v4.3',
+              : 'v4.5',
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
-        leadingWidth: _selectionMode ? 48 : 104,
+        leadingWidth: _selectionMode ? 48 : 96,
         titleSpacing: 4,
         leading: _selectionMode
             ? IconButton(
@@ -1760,16 +1630,21 @@ class _HomeScreenState extends State<HomeScreen>
                   IconButton(
                     tooltip: tr('Настройки'),
                     icon: const Icon(Icons.settings_outlined),
-                    onPressed: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const HelpScreen()),
-                    ),
+                    onPressed: () async {
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const HelpScreen()),
+                      );
+                      if (mounted) await _load();
+                    },
                   ),
                   IconButton(
-                    key: const ValueKey('import-krv'),
-                    tooltip: tr('Импорт измерений'),
-                    icon: const Icon(Icons.move_to_inbox_outlined),
-                    onPressed: _transferring ? null : _importKrv,
+                    tooltip: tr('О приложении'),
+                    icon: const Icon(Icons.help_outline),
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const AboutScreen44()),
+                    ),
                   ),
                 ],
               ),
@@ -1805,22 +1680,27 @@ class _HomeScreenState extends State<HomeScreen>
                 ),
               ]
             : [
-                if (compactToolbar)
-                  IconButton(
-                    tooltip: _search.active
-                        ? tr('Изменить поиск')
-                        : tr('Поиск'),
-                    onPressed: _showSearchDialog,
-                    icon: const Icon(Icons.search),
-                  )
-                else
-                  TextButton.icon(
-                    onPressed: _showSearchDialog,
-                    icon: const Icon(Icons.search),
-                    label: Text(
-                      _search.active ? tr('Изменить поиск') : tr('Поиск'),
-                    ),
-                  ),
+                IconButton(
+                  key: const ValueKey('home-search'),
+                  tooltip: _search.active ? tr('Изменить поиск') : tr('Поиск'),
+                  onPressed: _showSearchDialog,
+                  icon: _search.active
+                      ? const SizedBox(
+                          width: 28,
+                          height: 28,
+                          child: Stack(
+                            children: [
+                              Icon(Icons.search),
+                              Positioned(
+                                right: 0,
+                                bottom: 0,
+                                child: Icon(Icons.edit, size: 13),
+                              ),
+                            ],
+                          ),
+                        )
+                      : const Icon(Icons.search),
+                ),
                 PopupMenuButton<SortField>(
                   icon: const Icon(Icons.filter_list),
                   onSelected: (v) => setState(() => _sortField = v),
@@ -1868,11 +1748,20 @@ class _HomeScreenState extends State<HomeScreen>
                   final m = visible[i];
                   final selected = _selected.contains(m.id);
                   return Card(
-                    color: !m.completed
-                        ? const Color(0xFFFFF8E1)
-                        : selected
-                        ? const Color(0xFFDFF1FF)
-                        : Colors.white,
+                    color: selected
+                        ? Theme.of(context).colorScheme.secondaryContainer
+                        : !m.completed
+                        ? (Theme.of(context).brightness == Brightness.dark
+                              ? const Color(0xFF39362A)
+                              : const Color(0xFFFFF8E1))
+                        : Theme.of(context).colorScheme.surfaceContainerLow,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      side: BorderSide(
+                        color: Theme.of(context).colorScheme.outlineVariant,
+                        width: .5,
+                      ),
+                    ),
                     child: Row(
                       children: [
                         Expanded(
@@ -1896,10 +1785,26 @@ class _HomeScreenState extends State<HomeScreen>
                                         ? Icons.check_box
                                         : Icons.check_box_outline_blank,
                                   )
-                                : Icon(
-                                    m.completed
-                                        ? Icons.water_drop_outlined
-                                        : Icons.edit_note,
+                                : Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        m.completed
+                                            ? Icons.water_drop_outlined
+                                            : Icons.edit_note,
+                                      ),
+                                      if (m.completed && m.warnings.isNotEmpty)
+                                        Tooltip(
+                                          message: tr('Предупреждения'),
+                                          child: Icon(
+                                            Icons.error_outline,
+                                            size: 18,
+                                            color: Theme.of(
+                                              context,
+                                            ).colorScheme.error,
+                                          ),
+                                        ),
+                                    ],
                                   ),
                             title: Text(
                               m.titleRiver,
@@ -1908,7 +1813,7 @@ class _HomeScreenState extends State<HomeScreen>
                               ),
                             ),
                             subtitle: Text(
-                              '${m.titleSite}\n${m.completed ? 'Q: ${compactDischarge(m.discharge)} ${tr('м³/с')}' : ''}\n${humanFromIso(m.createdAt)}${m.completed ? '' : tr('\nНезавершённое измерение')}${m.importedCopy ? '\n${tr('Импортированная копия')}' : ''}',
+                              '${m.titleSite}\n${m.completed ? (m.discharge == null ? tr('Расход не определён') : 'Q: ${compactDischarge(m.discharge)} ${tr('м³/с')}') : ''}\n${humanFromIso(m.createdAt)}${m.completed ? '' : tr('\nНезавершённое измерение')}${m.importedCopy ? '\n${tr('Импортированная копия')}' : ''}',
                             ),
                             isThreeLine: true,
                           ),
@@ -2065,13 +1970,9 @@ class StatsCard extends StatelessWidget {
 
   Widget _metric(InlineSpan span) => Padding(
     padding: const EdgeInsets.all(6),
-    child: RichText(
-      text: TextSpan(
-        style: const TextStyle(
-          color: Colors.black,
-          fontWeight: FontWeight.w600,
-          fontSize: 15,
-        ),
+    child: Text.rich(
+      TextSpan(
+        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
         children: [span],
       ),
     ),
@@ -2219,11 +2120,16 @@ class _SoundingScreenState extends State<SoundingScreen>
   final _bankDepthC = TextEditingController();
   final _distanceC = TextEditingController();
   final _depthC = TextEditingController();
+  final _bottomC = TextEditingController();
+  final _iceC = TextEditingController();
+  final _bankBottomC = TextEditingController();
+  final _bankIceC = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     m = widget.measurement;
+    m.geometry44 = true;
     recalcAll(m);
   }
 
@@ -2235,6 +2141,10 @@ class _SoundingScreenState extends State<SoundingScreen>
     _bankDepthC.dispose();
     _distanceC.dispose();
     _depthC.dispose();
+    _bottomC.dispose();
+    _iceC.dispose();
+    _bankBottomC.dispose();
+    _bankIceC.dispose();
     super.dispose();
   }
 
@@ -2292,7 +2202,15 @@ class _SoundingScreenState extends State<SoundingScreen>
     final depthC = secondBank ? _bankDepthC : _depthC;
     final distance = parseNumRu(distanceC.text);
     final depth = parseNumRu(depthC.text);
-    if (distance == null || depth == null) return;
+    final bottomC = secondBank ? _bankBottomC : _bottomC;
+    final iceC = secondBank ? _bankIceC : _iceC;
+    final ice = parseNumRu(iceC.text);
+    if (distance == null ||
+        depth == null ||
+        depth < 0 ||
+        (m.iceCover && (ice == null || ice < 0))) {
+      return;
+    }
     final dd = _metres(distance);
     if (_distanceExists(dd)) {
       showSnack(
@@ -2317,12 +2235,16 @@ class _SoundingScreenState extends State<SoundingScreen>
           bank: bank,
           distance: dd,
           depth1: _metres(depth),
+          bottomType: bottomC.text.trim(),
+          iceThicknessCm: m.iceCover ? roundTo(ice!, 2) : null,
           depth1At: measurementNow(m),
         ),
       );
       if (secondBank) _addingSecondBank = false;
       distanceC.clear();
       depthC.clear();
+      bottomC.clear();
+      iceC.clear();
     });
     await _saveNow();
     if (mounted && !secondBank) {
@@ -2376,6 +2298,11 @@ class _SoundingScreenState extends State<SoundingScreen>
   }
 
   String? _validateBeforeVelocity() {
+    if (m.iceCover &&
+        m.requireIceThickness &&
+        m.verticals.any((v) => v.iceThicknessCm == null)) {
+      return '${tr('Допишите толщину льда на вертикалях')}: ${m.verticals.where((v) => v.iceThicknessCm == null).map((v) => inputNumber(v.distance)).join(', ')} ${tr('м')}';
+    }
     if (m.river.trim().isEmpty ||
         m.site.trim().isEmpty ||
         m.levelSoundingStart == null ||
@@ -2428,8 +2355,7 @@ class _SoundingScreenState extends State<SoundingScreen>
 
   @override
   Widget build(BuildContext context) {
-    final canAdd =
-        parseNumRu(_distanceC.text) != null && parseNumRu(_depthC.text) != null;
+    final canAdd = _entryReady(false);
     final needSecondBank =
         (m.hasLeftBank ^ m.hasRightBank) && !_addingSecondBank;
     final secondBankReady = m.hasBothBanks;
@@ -2557,6 +2483,7 @@ class _SoundingScreenState extends State<SoundingScreen>
                 onChanged: (value) {
                   setState(() {
                     m.iceCover = value ?? false;
+                    if (m.iceCover) m.requireIceThickness = true;
                     recalcAll(m);
                   });
                   _scheduleSave();
@@ -2598,63 +2525,7 @@ class _SoundingScreenState extends State<SoundingScreen>
               ),
             ],
             const SizedBox(height: 10),
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    key: const ValueKey('sounding-distance'),
-                    focusNode: _distanceFocus,
-                    controller: _distanceC,
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                      signed: true,
-                    ),
-                    inputFormatters: [
-                      numericFormatter,
-                      LengthLimitingTextInputFormatter(12),
-                    ],
-                    decoration: InputDecoration(
-                      labelText: '${tr('Расст.')}, $_unit',
-                      hintText: _centimetres
-                          ? tr('Значение в сантиметрах')
-                          : tr('Значение в метрах'),
-                    ),
-                    onChanged: (text) {
-                      setState(() => _recordInput(parseNumRu(text)));
-                    },
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: TextField(
-                    key: const ValueKey('sounding-depth'),
-                    controller: _depthC,
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                    ),
-                    inputFormatters: [
-                      numericFormatter,
-                      LengthLimitingTextInputFormatter(12),
-                    ],
-                    decoration: InputDecoration(
-                      labelText: '${tr('Глуб₁.')}, $_unit',
-                      hintText: _centimetres
-                          ? tr('Значение в сантиметрах')
-                          : tr('Значение в метрах'),
-                    ),
-                    onChanged: (text) {
-                      setState(() => _recordInput(parseNumRu(text)));
-                    },
-                  ),
-                ),
-                const SizedBox(width: 8),
-                FilledButton(
-                  key: const ValueKey('add-sounding'),
-                  onPressed: canAdd ? () => _addVertical() : null,
-                  child: Text(tr('Добавить')),
-                ),
-              ],
-            ),
+            _entryFields(false, canAdd),
             if (needSecondBank) ...[
               const SizedBox(height: 10),
               OutlinedButton(
@@ -2671,64 +2542,7 @@ class _SoundingScreenState extends State<SoundingScreen>
                 style: const TextStyle(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 10),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      key: const ValueKey('second-bank-distance'),
-                      controller: _bankDistanceC,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                        signed: true,
-                      ),
-                      inputFormatters: [
-                        numericFormatter,
-                        LengthLimitingTextInputFormatter(12),
-                      ],
-                      decoration: InputDecoration(
-                        labelText: '${tr('Расст.')}, $_unit',
-                        hintText: _centimetres
-                            ? tr('Значение в сантиметрах')
-                            : tr('Значение в метрах'),
-                      ),
-                      onChanged: (text) =>
-                          setState(() => _recordInput(parseNumRu(text))),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: TextField(
-                      key: const ValueKey('second-bank-depth'),
-                      controller: _bankDepthC,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                      ),
-                      inputFormatters: [
-                        numericFormatter,
-                        LengthLimitingTextInputFormatter(12),
-                      ],
-                      decoration: InputDecoration(
-                        labelText: '${tr('Глуб₁.')}, $_unit',
-                        hintText: _centimetres
-                            ? tr('Значение в сантиметрах')
-                            : tr('Значение в метрах'),
-                      ),
-                      onChanged: (text) =>
-                          setState(() => _recordInput(parseNumRu(text))),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  FilledButton(
-                    key: const ValueKey('add-second-bank'),
-                    onPressed:
-                        parseNumRu(_bankDistanceC.text) != null &&
-                            parseNumRu(_bankDepthC.text) != null
-                        ? () => _addVertical(secondBank: true)
-                        : null,
-                    child: Text(tr('Добавить')),
-                  ),
-                ],
-              ),
+              _entryFields(true, _entryReady(true)),
             ],
             if (secondBankReady) ...[
               const SizedBox(height: 10),
@@ -2775,12 +2589,16 @@ class _SoundingScreenState extends State<SoundingScreen>
             const SizedBox(height: 8),
             Text(
               tr('Перемещайте таблицу в стороны👉'),
-              style: const TextStyle(color: Colors.black54),
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: 4),
             Text(
               tr('Нажмите на значение глубины, чтобы его изменить☝️'),
-              style: const TextStyle(color: Colors.black54),
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
           ],
         ),
@@ -2798,6 +2616,138 @@ class _SoundingScreenState extends State<SoundingScreen>
     );
   }
 
+  bool _entryReady(bool bank) {
+    final distance = parseNumRu((bank ? _bankDistanceC : _distanceC).text);
+    final depth = parseNumRu((bank ? _bankDepthC : _depthC).text);
+    final ice = parseNumRu((bank ? _bankIceC : _iceC).text);
+    return distance != null &&
+        depth != null &&
+        depth >= 0 &&
+        (!m.iceCover || (ice != null && ice >= 0));
+  }
+
+  Widget _entryFields(bool bank, bool ready) {
+    final prefix = bank ? 'second-bank' : 'sounding';
+    Widget number(
+      String suffix,
+      TextEditingController controller,
+      String label, {
+      bool length = true,
+    }) => TextField(
+      key: ValueKey('$prefix-$suffix'),
+      focusNode: !bank && suffix == 'distance' ? _distanceFocus : null,
+      controller: controller,
+      keyboardType: const TextInputType.numberWithOptions(
+        decimal: true,
+        signed: true,
+      ),
+      inputFormatters: [numericFormatter, LengthLimitingTextInputFormatter(12)],
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: length
+            ? tr(_centimetres ? 'Значение в сантиметрах' : 'Значение в метрах')
+            : tr('Значение в сантиметрах'),
+      ),
+      onChanged: (text) => setState(() => _recordInput(parseNumRu(text))),
+      onEditingComplete: () {
+        if (!length) {
+          final n = parseNumRu(controller.text);
+          if (n != null && n >= 0) controller.text = inputNumber(roundTo(n, 2));
+        }
+        FocusScope.of(context).nextFocus();
+      },
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: number(
+                'distance',
+                bank ? _bankDistanceC : _distanceC,
+                '${tr('Расст.')}, $_unit',
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: number(
+                'depth',
+                bank ? _bankDepthC : _depthC,
+                '${tr('Глуб₁.')}, $_unit',
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                key: ValueKey('$prefix-bottom'),
+                controller: bank ? _bankBottomC : _bottomC,
+                inputFormatters: [LengthLimitingTextInputFormatter(32)],
+                decoration: InputDecoration(
+                  labelText: tr('Тип дна'),
+                  hintText: tr('Необязательно'),
+                ),
+              ),
+            ),
+            if (m.iceCover) ...[
+              const SizedBox(width: 8),
+              Expanded(
+                child: number(
+                  'ice',
+                  bank ? _bankIceC : _iceC,
+                  tr('Толщина льда, см'),
+                  length: false,
+                ),
+              ),
+            ],
+          ],
+        ),
+        const SizedBox(height: 10),
+        FilledButton(
+          key: ValueKey(bank ? 'add-second-bank' : 'add-sounding'),
+          onPressed: ready ? () => _addVertical(secondBank: bank) : null,
+          child: Text(tr('Добавить')),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _editDepth44(VerticalPoint v, bool second) async {
+    final old = second ? v.depth2 : v.depth1;
+    final value = await editNumberDialog(
+      context,
+      title: '${tr(second ? 'Глубина 2' : 'Глубина 1')}, $_unit',
+      initial: _displayLength(old),
+      allowEmpty: second,
+      beforeSave: (value) async {
+        if (value != null && value < 0) return false;
+        final next = value == null ? null : _metres(value);
+        if (next == old ||
+            !v.velocityPoints.values.any((p) => p.value != null)) {
+          return true;
+        }
+        return confirmDialog(
+          context,
+          title: tr('Изменить глубину на скоростной вертикали?'),
+          message: tr(
+            'Вы пытаетесь изменить глубину на скоростной вертикали с введёнными скоростями. Эти скорости будут удалены, если вы нажмёте «Да».',
+          ),
+        );
+      },
+    );
+    if (value != null && (value.isNaN || value < 0)) return;
+    if (value == null && !second) return;
+    final next = value == null ? null : _metres(value);
+    if (next == old || !mounted) return;
+    if (!mounted) return;
+    setState(() => changeDepth44(m, v, next, second: second, confirmed: true));
+    await _saveNow();
+  }
+
   Widget _soundingTable() {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
@@ -2808,6 +2758,7 @@ class _SoundingScreenState extends State<SoundingScreen>
           DataColumn(label: Text('${tr('Глуб₁.')}, $_unit')),
           DataColumn(label: Text('${tr('Глуб₂.')}, $_unit')),
           DataColumn(label: Text(tr('Тип дна'))),
+          if (m.iceCover) DataColumn(label: Text(tr('Толщина льда, см'))),
           const DataColumn(label: Text('')),
         ],
         rows: m.verticals.map((v) {
@@ -2828,30 +2779,15 @@ class _SoundingScreenState extends State<SoundingScreen>
                           _centimetres ? 1 : 3,
                         ),
                   style: TextStyle(
-                    color: v.depth1 == null ? Colors.grey : Colors.black,
+                    color: v.depth1 == null
+                        ? Colors.grey
+                        : Theme.of(context).colorScheme.onSurface,
                     fontStyle: v.depth1 == null
                         ? FontStyle.italic
                         : FontStyle.normal,
                   ),
                 ),
-                onTap: () async {
-                  final value = await editNumberDialog(
-                    context,
-                    title: '${tr('Глубина 1')}, $_unit',
-                    initial: _displayLength(v.depth1),
-                  );
-                  if (value == null ||
-                      value.isNaN ||
-                      _metres(value) == v.depth1) {
-                    return;
-                  }
-                  setState(() {
-                    v.depth1 = _metres(value);
-                    recordSoundingInput(m);
-                    v.depth1At = measurementNow(m);
-                  });
-                  await _saveNow();
-                },
+                onTap: () => _editDepth44(v, false),
               ),
               DataCell(
                 Text(
@@ -2862,36 +2798,23 @@ class _SoundingScreenState extends State<SoundingScreen>
                           _centimetres ? 1 : 3,
                         ),
                   style: TextStyle(
-                    color: v.depth2 == null ? Colors.grey : Colors.black,
+                    color: v.depth2 == null
+                        ? Colors.grey
+                        : Theme.of(context).colorScheme.onSurface,
                     fontStyle: v.depth2 == null
                         ? FontStyle.italic
                         : FontStyle.normal,
                   ),
                 ),
-                onTap: () async {
-                  final value = await editNumberDialog(
-                    context,
-                    title: '${tr('Глубина 2')}, $_unit',
-                    initial: _displayLength(v.depth2),
-                    allowEmpty: true,
-                  );
-                  if (value != null && value.isNaN) return;
-                  if ((value == null ? null : _metres(value)) == v.depth2) {
-                    return;
-                  }
-                  setState(() {
-                    v.depth2 = value == null ? null : _metres(value);
-                    recordSoundingInput(m);
-                    v.depth2At = measurementNow(m);
-                  });
-                  await _saveNow();
-                },
+                onTap: () => _editDepth44(v, true),
               ),
               DataCell(
                 Text(
                   v.bottomType.isEmpty ? tr('н/д') : v.bottomType,
                   style: TextStyle(
-                    color: v.bottomType.isEmpty ? Colors.grey : Colors.black,
+                    color: v.bottomType.isEmpty
+                        ? Colors.grey
+                        : Theme.of(context).colorScheme.onSurface,
                     fontStyle: v.bottomType.isEmpty
                         ? FontStyle.italic
                         : FontStyle.normal,
@@ -2909,6 +2832,22 @@ class _SoundingScreenState extends State<SoundingScreen>
                   await _saveNow();
                 },
               ),
+              if (m.iceCover)
+                DataCell(
+                  Text(_numCell(v.iceThicknessCm, 2)),
+                  onTap: () async {
+                    final value = await editNumberDialog(
+                      context,
+                      title: tr('Толщина льда, см'),
+                      initial: v.iceThicknessCm,
+                    );
+                    if (value == null || value.isNaN || value < 0 || !mounted) {
+                      return;
+                    }
+                    setState(() => v.iceThicknessCm = roundTo(value, 2));
+                    await _saveNow();
+                  },
+                ),
               DataCell(
                 v.bank == null
                     ? IconButton(
@@ -2952,7 +2891,7 @@ class _VelocityScreenState extends State<VelocityScreen>
   void initState() {
     super.initState();
     m = widget.measurement;
-    recalcAll(m);
+    recalcAll(m, finalCalculation: true);
   }
 
   @override
@@ -2964,14 +2903,15 @@ class _VelocityScreenState extends State<VelocityScreen>
   void _scheduleSave() {
     _saveTimer?.cancel();
     _saveTimer = Timer(const Duration(milliseconds: 350), () async {
-      recalcAll(m);
+      recalcAll(m, finalCalculation: true);
+      if (mounted) setState(() {});
       await WdcStorage.instance.save(m);
     });
   }
 
   Future<void> _saveNow() async {
     _saveTimer?.cancel();
-    recalcAll(m);
+    recalcAll(m, finalCalculation: true);
     await WdcStorage.instance.save(m);
   }
 
@@ -2984,7 +2924,7 @@ class _VelocityScreenState extends State<VelocityScreen>
     setState(() {
       for (final id in _picked) {
         final v = m.verticals.firstWhere((x) => x.id == id);
-        if (v.bank == null) v.isSpeedVertical = true;
+        if (canMeasureSpeed44(v)) v.isSpeedVertical = true;
       }
       _picked.clear();
     });
@@ -3051,7 +2991,11 @@ class _VelocityScreenState extends State<VelocityScreen>
     }
     final speed = m.verticals.where((v) => v.isSpeedVertical).toList();
     if (speed.isEmpty) return tr('Добавьте хотя бы одну скоростную вертикаль');
-    if (speed.any((v) => v.avgVelocity == null)) {
+    if (speed.any(
+      (v) =>
+          v.avgVelocity == null &&
+          (!m.geometry44 || (v.avgDepth ?? 0) + (levelDelta(m) ?? 0) > 0),
+    )) {
       return tr('Не все скоростные вертикали заполнены');
     }
     return null;
@@ -3120,6 +3064,7 @@ class _VelocityScreenState extends State<VelocityScreen>
           children: [
             MeasurementComment(key: ValueKey(m.comment), measurement: m),
             MeasurementPhotos(measurement: m, editable: true),
+            const SizedBox(height: 18),
             NumField(
               label: tr('Уровень воды на начало измерения скоростей течения'),
               hint: tr('Значение в метрах'),
@@ -3133,24 +3078,37 @@ class _VelocityScreenState extends State<VelocityScreen>
               },
             ),
             const SizedBox(height: 10),
-            NumField(
-              label: tr('Лопастной диаметр вертушки, см'),
-              initial: m.rotorDiameter == null
-                  ? null
-                  : roundTo(m.rotorDiameter! * 100, 4),
-              hint: tr('Диаметр в сантиметрах, например 5'),
-              maxLength: 10,
-              onChanged: (v) {
-                setState(
-                  () => m.rotorDiameter = v == null || v <= 0
-                      ? null
-                      : roundTo(v / 100, 6),
-                );
-                _scheduleSave();
-              },
+            Row(
+              children: [
+                Expanded(
+                  child: NumField(
+                    label: tr('Лопастной диаметр вертушки, см'),
+                    initial: m.rotorDiameter == null
+                        ? null
+                        : roundTo(m.rotorDiameter! * 100, 4),
+                    hint: tr('Диаметр в сантиметрах, например 5'),
+                    maxLength: 10,
+                    onChanged: (v) {
+                      setState(
+                        () => m.rotorDiameter = v == null || v <= 0
+                            ? null
+                            : roundTo(v / 100, 6),
+                      );
+                      _scheduleSave();
+                    },
+                  ),
+                ),
+                IconButton(
+                  tooltip: tr('Справка'),
+                  icon: const Icon(Icons.help_outline),
+                  onPressed: () =>
+                      showInfo44(context, tr('Справка'), tr(rotorHelp44)),
+                ),
+              ],
             ),
             const SizedBox(height: 12),
             StatsCard(m: m),
+            IceProfile44(m: m),
             SizedBox(
               height: 320,
               child: Card(
@@ -3162,6 +3120,7 @@ class _VelocityScreenState extends State<VelocityScreen>
                     child: CustomPaint(
                       painter: CrossSectionPainter(
                         measurement: m,
+                        dark: Theme.of(context).brightness == Brightness.dark,
                         pickedIds: _picked,
                         showVelocities: true,
                         yForVelocityPoint: yForVelocityPoint,
@@ -3200,6 +3159,8 @@ class _VelocityScreenState extends State<VelocityScreen>
                 ),
               ],
             ),
+            if (m.warnings.contains(zeroDepthWarning))
+              const Warning44('Промеры с глубиной 0', zeroDepthWarning),
             _shortPromerTable(),
             const SizedBox(height: 8),
             FilledButton(
@@ -3259,7 +3220,7 @@ class _VelocityScreenState extends State<VelocityScreen>
                           await _saveNow();
                         } catch (_) {
                           m.calculationConfig = old;
-                          recalcAll(m);
+                          recalcAll(m, finalCalculation: true);
                           rethrow;
                         }
                         if (mounted) setState(() {});
@@ -3286,6 +3247,20 @@ class _VelocityScreenState extends State<VelocityScreen>
                 },
               ),
             ],
+            LevelOptions44(
+              m: m,
+              onChanged: () {
+                setState(() => recalcAll(m, finalCalculation: true));
+                _scheduleSave();
+              },
+            ),
+            for (final warning in [
+              invalidSlopeWarning,
+              drySpeedWarning,
+              splitSectionWarning,
+            ])
+              if (m.warnings.contains(warning))
+                Warning44('Расчёт недоступен', warning),
             if (m.levelVelocityEnd != null) ...[
               const SizedBox(height: 16),
               _coeffHelpTable(),
@@ -3347,7 +3322,7 @@ class _VelocityScreenState extends State<VelocityScreen>
         ],
         rows: m.verticals.map((v) {
           final disabled =
-              v.bank != null ||
+              !canMeasureSpeed44(v) ||
               v.isSpeedVertical ||
               m.levelVelocityStart == null ||
               m.rotorDiameter == null;
@@ -3392,7 +3367,7 @@ class _VelocityScreenState extends State<VelocityScreen>
     );
     if (mounted) {
       setState(() {
-        recalcAll(m);
+        recalcAll(m, finalCalculation: true);
       });
     }
   }
@@ -3410,7 +3385,9 @@ class _VelocityScreenState extends State<VelocityScreen>
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         DecoratedBox(
-          decoration: const BoxDecoration(color: Color(0xFFE5F2FA)),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surfaceContainerHighest,
+          ),
           child: DataTable(
             key: const ValueKey('fixed-distance-column'),
             horizontalMargin: 8,
@@ -3597,15 +3574,13 @@ class _ResultScreenState extends State<ResultScreen>
 
   Future<void> _shareCsv() async {
     final f = await WdcStorage.instance.exportCsv(m);
-    await Share.shareXFiles([
-      XFile(f.path),
-    ], text: tr('CSV расчёта расхода воды'));
+    await shareFiles44([XFile(f.path)], text: tr('CSV расчёта расхода воды'));
   }
 
   Future<void> _sharePdf() async {
     try {
       final f = await WdcStorage.instance.exportPdf(m);
-      await Share.shareXFiles([
+      await shareFiles44([
         XFile(f.path),
       ], text: tr('PDF-отчёт расчёта расхода воды'));
     } catch (_) {
@@ -3738,7 +3713,9 @@ class _ResultScreenState extends State<ResultScreen>
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      '${tr('Расход воды')}: ${_numCell(m.discharge, 6)} ${tr('м³/с')}',
+                      m.discharge == null
+                          ? tr('Расход не определён')
+                          : '${tr('Расход воды')}: ${_numCell(m.discharge, 6)} ${tr('м³/с')}',
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 20,
@@ -3781,35 +3758,20 @@ class _ResultScreenState extends State<ResultScreen>
             Text(
               '${tr('Изменение уровня')}: ${_numCell(m.levelCorrection, 3)} ${tr('м')}',
             ),
-            Text('Коэффициент ЛБ: ${_numCell(m.bankCoeffLeft, 2)}'),
-            Text('Коэффициент ПБ: ${_numCell(m.bankCoeffRight, 2)}'),
+            Text('${tr('Коэффициент ЛБ')}: ${_numCell(m.bankCoeffLeft, 2)}'),
+            Text('${tr('Коэффициент ПБ')}: ${_numCell(m.bankCoeffRight, 2)}'),
+            if (m.geometry44 && (m.levelCorrection ?? 0) > 0)
+              Text(
+                '${bankLabel('ЛБ')}: ${appliedBankMode45(m, true)}; ${bankLabel('ПБ')}: ${appliedBankMode45(m, false)}',
+              ),
             Text(
               '${tr('Лопастной диаметр вертушки')}: ${_numCell(m.rotorDiameter == null ? null : m.rotorDiameter! * 100, 2)} ${tr('см')}',
             ),
             const SizedBox(height: 12),
             StatsCard(m: m),
-            if (m.warnings.isNotEmpty)
-              Card(
-                color: const Color(0xFFFFEBEE),
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        tr('Предупреждения'),
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      ...m.warnings.map(
-                        (w) => Padding(
-                          padding: const EdgeInsets.only(top: 6),
-                          child: Text(tr(w)),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+            IceProfile44(m: m),
+            for (final warning in m.warnings)
+              Warning44('Предупреждение', warning),
             SizedBox(
               height: 340,
               child: Card(
@@ -3821,6 +3783,7 @@ class _ResultScreenState extends State<ResultScreen>
                     child: CustomPaint(
                       painter: CrossSectionPainter(
                         measurement: m,
+                        dark: Theme.of(context).brightness == Brightness.dark,
                         showVelocities: true,
                         showDischarges: false,
                       ),
@@ -3835,7 +3798,7 @@ class _ResultScreenState extends State<ResultScreen>
               tr('Таблица промерных вертикалей'),
               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
-            resultSoundingTable(m.verticals),
+            resultSoundingTable(m.verticals, showIce: m.iceCover),
             const SizedBox(height: 16),
             Text(
               tr('Таблица скоростных вертикалей'),
@@ -3860,9 +3823,11 @@ class CrossSectionPainter extends CustomPainter {
     this.showVelocities = false,
     this.showDischarges = false,
     this.yForVelocityPoint,
+    this.dark = false,
   });
 
   final WdcMeasurement measurement;
+  final bool dark;
   final Set<String> pickedIds;
   final bool showVelocities;
   final bool showDischarges;
@@ -3871,16 +3836,27 @@ class CrossSectionPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final m = measurement;
+    if (m.geometry44) {
+      ProfilePainter44(
+        m,
+        dark: dark,
+        picked: pickedIds,
+        velocities: showVelocities,
+        discharges: showDischarges,
+      ).paint(canvas, size);
+      return;
+    }
     if (m.verticals.length < 2) {
       _text(
         canvas,
         tr('Недостаточно данных для графика'),
         const Offset(20, 20),
-        Colors.black,
+        dark ? Colors.white : Colors.black,
         14,
       );
       return;
     }
+    final ink = dark ? Colors.white : Colors.black;
     final vertices = m.verticals;
     final minX = vertices.map((v) => v.distance ?? 0).reduce(math.min);
     final maxX = vertices.map((v) => v.distance ?? 0).reduce(math.max);
@@ -3927,7 +3903,7 @@ class CrossSectionPainter extends CustomPainter {
     );
 
     final bedPaint = Paint()
-      ..color = Colors.brown.shade700
+      ..color = (dark ? const Color(0xFFD7B49E) : Colors.brown.shade700)
       ..strokeWidth = 2.3
       ..style = PaintingStyle.stroke;
     final bed = Path();
@@ -3951,7 +3927,8 @@ class CrossSectionPainter extends CustomPainter {
       canvas.drawCircle(
         Offset(x, y),
         3.5,
-        Paint()..color = Colors.brown.shade700,
+        Paint()
+          ..color = (dark ? const Color(0xFFD7B49E) : Colors.brown.shade700),
       );
       if ((v.correctedDepth ?? v.avgDepth ?? 0) > 0 && v.bank != null) {
         canvas.drawLine(Offset(x, sy(0)), Offset(x, y), bedPaint);
@@ -3960,7 +3937,7 @@ class CrossSectionPainter extends CustomPainter {
 
     // Axes, ticks and labels
     final axis = Paint()
-      ..color = Colors.black54
+      ..color = dark ? Colors.white70 : Colors.black54
       ..strokeWidth = 1;
     canvas.drawLine(const Offset(left, top), Offset(left, top + h), axis);
     canvas.drawLine(const Offset(left, top), Offset(left + w, top), axis);
@@ -3975,7 +3952,7 @@ class CrossSectionPainter extends CustomPainter {
         canvas,
         _formatTick(x, xStep),
         Offset(px, top - 22),
-        Colors.black87,
+        dark ? Colors.white70 : Colors.black87,
         11,
         anchorX: 0.5,
       );
@@ -3990,40 +3967,27 @@ class CrossSectionPainter extends CustomPainter {
         canvas,
         _formatTick(y, yStep),
         Offset(left - 9, py - 7),
-        Colors.black87,
+        dark ? Colors.white70 : Colors.black87,
         11,
         anchorX: 1,
       );
     }
 
-    _text(
-      canvas,
-      bankLabel('ЛБ'),
-      const Offset(left, 10),
-      Colors.black,
-      17,
-      bold: true,
-    );
+    _text(canvas, bankLabel('ЛБ'), const Offset(left, 10), ink, 17, bold: true);
     _text(
       canvas,
       bankLabel('ПБ'),
       Offset(left + w - 28, 10),
-      Colors.black,
+      ink,
       17,
       bold: true,
     );
-    _rotatedText(
-      canvas,
-      tr('Глуб., м'),
-      Offset(5, top + h / 2 + 32),
-      Colors.black,
-      14,
-    );
+    _rotatedText(canvas, tr('Глуб., м'), Offset(5, top + h / 2 + 32), ink, 14);
     _text(
       canvas,
       tr('Расст., м'),
       Offset(left + w / 2, 12),
-      Colors.black,
+      ink,
       14,
       anchorX: 0.5,
     );
@@ -4039,7 +4003,7 @@ class CrossSectionPainter extends CustomPainter {
       } else if (v.avgVelocity != null) {
         color = Colors.green.shade700;
       } else {
-        color = Colors.black;
+        color = ink;
       }
       canvas.drawLine(
         Offset(x, sy(0)),
@@ -4060,9 +4024,25 @@ class CrossSectionPainter extends CustomPainter {
           canvas.drawCircle(
             Offset(x, sy(yy)),
             4,
-            Paint()..color = velocityPointColor(v, entry.key),
+            Paint()..color = velocityPointColor(v, entry.key, dark: dark),
           );
         }
+      }
+    }
+
+    canvas.drawPath(bed, bedPaint);
+
+    for (final v in vertices) {
+      final x = sx(v.distance ?? 0);
+      final y = sy(v.correctedDepth ?? v.avgDepth ?? 0);
+      canvas.drawCircle(
+        Offset(x, y),
+        3.5,
+        Paint()
+          ..color = (dark ? const Color(0xFFD7B49E) : Colors.brown.shade700),
+      );
+      if ((v.correctedDepth ?? v.avgDepth ?? 0) > 0 && v.bank != null) {
+        canvas.drawLine(Offset(x, sy(0)), Offset(x, y), bedPaint);
       }
     }
 
@@ -4083,7 +4063,7 @@ class CrossSectionPainter extends CustomPainter {
         final v = vertices[i];
         final q = v.partialDischarge;
         if (q == null) continue;
-        var color = Colors.black;
+        var color = ink;
         if (meanInternal != null && meanInternal > 0) {
           final firstSpeedId = speed.isNotEmpty ? speed.first.id : null;
           final isEdge = v.id == firstSpeedId || i == vertices.length - 1;

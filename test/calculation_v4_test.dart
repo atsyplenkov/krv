@@ -320,7 +320,7 @@ void main() {
     expect(ru, contains('"Да; ""Нет""\nRiver"'));
     AppSettings.current.language = 'en';
     final en = csvContent(m);
-    expect(en.split('\n').first, isNot(matches(RegExp('[А-Яа-я]'))));
+    expect(en.split('\n').first, ru.split('\n').first);
     expect(en, contains('Берег'));
     expect(en, contains('"Да; ""Нет""\nRiver"'));
     expect(en, contains('WMO No. 168'));

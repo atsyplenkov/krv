@@ -1,0 +1,19 @@
+cff-version: 1.2.0
+message: "If you use WDC in research, please cite the version used."
+title: "Water Discharge Calculator"
+type: software
+authors:
+  - family-names: "Loshkov"
+    given-names: "Oleg"
+version: "4.5.0"
+repository-code: "https://github.com/olegegka/krv"
+license: "Apache-2.0"
+
+date-released: '2026-10-17'
+url: 'https://github.com/olegegka/krv/releases/tag/v4.5.0'
+abstract: 'Offline hydrometric field measurements, water discharge and cross-section calculations, and PDF/CSV reports.'
+keywords:
+  - hydrology
+  - hydrometry
+  - water discharge
+  - Flutter

@@ -11,8 +11,24 @@ String get appLanguage {
   return 'ru';
 }
 
-String tr(String source) =>
-    appLanguage == 'en' ? english[source] ?? source : source;
+String tr(String source) {
+  if (appLanguage != 'en') return source;
+  final direct = english44[source] ?? english[source];
+  if (direct != null) return direct;
+  for (final base in [drySpeedWarning, invalidSlopeWarning]) {
+    if (source.startsWith('$base\n')) {
+      final detail = source
+          .substring(base.length + 1)
+          .replaceAll('Расстояния:', 'Distances:')
+          .replaceAll('ЛБ', 'LB')
+          .replaceAll('ПБ', 'RB')
+          .replaceAll(' м', ' m');
+      return '${english44[base]}\n$detail';
+    }
+  }
+  return source;
+}
+
 String bankLabel(String? bank) => bank == null
     ? ''
     : appLanguage == 'en'
@@ -24,6 +40,14 @@ String bankLabel(String? bank) => bank == null
     : bank;
 
 const english = <String, String>{
+  'вместо продолжения склона': 'instead of extending the slope',
+  "Импортировать файл .krv": "Import a .krv file",
+  "Полная версия": "Full text",
+  "Открыть код на GitHub": "View source on GitHub",
+  "Предупреждение": "Warning",
+  "Расход не определён": "Discharge not determined",
+  "Повторить": "Retry",
+
   "Импорт измерений": "Import measurements",
   "Экспорт выбранных в .krv": "Export selected to .krv",
   "Создаём архив…": "Creating archive\u2026",
@@ -86,24 +110,24 @@ const english = <String, String>{
   coefficientsLimits:
       'Coefficients must be greater than zero, no greater than 1000, and have no more than 3 decimal places.',
   specialRules:
-      'Ice phenomena / aquatic vegetation use a separate coefficient table below the normal table. Under these conditions, the app selects the first available method from top to bottom in that table only. If none can be calculated, mean velocity is unavailable; the app does not fall back to normal-condition methods.',
+      'Ice conditions / aquatic vegetation use a separate coefficient table below the normal table. Under these conditions, the app selects the first available method from top to bottom in that table only. If none can be calculated, mean velocity is unavailable; the app does not fall back to normal-condition methods.',
   specialExample:
-      'Under ice phenomena / aquatic vegetation, mean velocity is calculated using special-condition methods. For example, with velocities at 0.2h, 0.6h and 0.8h, the calculation uses the pair at 0.2h and 0.8h. If there is insufficient data for a special-condition method, mean velocity is unavailable.',
+      'In ice or aquatic vegetation conditions, mean velocity is calculated using special-condition methods. For example, with velocities at 0.2h, 0.6h and 0.8h, the calculation uses the pair at 0.2h and 0.8h. If there is insufficient data for a special-condition method, mean velocity is unavailable.',
   iceDepthHelp:
       'Depths entered under ice cover are treated as effective water depths excluding ice thickness. Ice cover is included in the wetted perimeter calculation.',
 
   "Исправьте некорректные значения скорости": "Correct invalid velocity values",
   "Некорректное число": "Invalid number",
-  "Горизонт": "Horizon",
+  "Горизонт": "Measurement depth",
   "Коэффициент": "Coefficient",
   "Настройки": "Settings",
-  "v4.3": "v4.3",
+  "v4.5": "v4.5",
   "Калькулятор Расходов Воды": "Water Discharge Calculator",
-  "Калькулятор расходов воды 4.3": "Water Discharge Calculator 4.3",
-  "Калькулятор расходов воды · 4.3": "Water Discharge Calculator · 4.3",
+  "Калькулятор расходов воды 4.5": "Water Discharge Calculator 4.5",
+  "Калькулятор расходов воды · 4.5": "Water Discharge Calculator · 4.5",
   "Язык": "Language",
   "Как в системе": "System default",
-  "Автоматически получать координаты": "Acquire coordinates automatically",
+  "Автоматически получать координаты": "Get coordinates automatically",
   "Метод расчёта по умолчанию": "Default calculation method",
   "Эти настройки применяются только к новым измерениям. Существующие измерения сохраняют свои методы.":
       "These settings apply only to new measurements. Existing measurements retain their methods.",
@@ -120,7 +144,7 @@ const english = <String, String>{
   "Приоритет: первая доступная схема сверху вниз. Незаполненное поле отличается от нулевой скорости.":
       "Priority: the first available method from top to bottom. An empty field is different from zero velocity.",
   "Обычные условия": "Normal conditions",
-  "Ледовые явления / растительность": "Ice phenomena / aquatic vegetation",
+  "Ледовые явления / растительность": "Ice conditions / aquatic vegetation",
   "Нажмите коэффициент для изменения: больше 0, не больше 1000, до 3 знаков после запятой. Для одной точки делитель равен 1.":
       "Tap a coefficient to edit it: greater than 0, at most 1000, up to 3 decimal places. The divisor for a single point is 1.",
   "Коэффициенты этого набора доступны только для просмотра.":
@@ -153,7 +177,7 @@ const english = <String, String>{
       "Ice cover is enabled for the whole cross-section.",
   "Глубина — рабочая толщина воды безо льда. Лёд увеличивает смоченный периметр на ширину створа.":
       "Enter effective water depth, excluding ice. Ice adds the cross-section width to the wetted perimeter.",
-  "Рабочая глубина": "Effective depth",
+  "Рабочая глубина": "Effective water depth",
   "Расстояние от дна": "Height above bed",
   "Глубина от поверхности": "Depth below surface",
   "Скоростная вертикаль": "Velocity vertical",
@@ -301,7 +325,7 @@ const english = <String, String>{
       "The left and right banks must be the outermost verticals",
   "Широта, °": "Latitude, °",
   "Долгота, °": "Longitude, °",
-  "Получаем координаты…": "Acquiring coordinates…",
+  "Получаем координаты…": "Getting coordinates…",
   "Координаты не получены. Их можно ввести вручную или обновить позже":
       "Coordinates unavailable. Enter them manually or retry later.",
   "Нет разрешения на геолокацию": "Location permission not granted",
@@ -387,10 +411,10 @@ const english = <String, String>{
       "Area between sounding verticals, m2",
   "Площадь водного сечения между промерными вертикалями с поправкой, м2":
       "Corrected area between sounding verticals, m2",
-  "Площадь отсеков водного сечения, м2": "Section areas, m2",
-  "Площадь отсека, м²": "Section area, m²",
-  "Частичный расход воды, м3/с": "Section discharge, m3/s",
-  "Частичный расход, м³/с": "Section discharge, m³/s",
+  "Площадь отсеков водного сечения, м2": "Subsection areas, m2",
+  "Площадь отсека, м²": "Subsection area, m²",
+  "Частичный расход воды, м3/с": "Subsection discharge, m3/s",
+  "Частичный расход, м³/с": "Subsection discharge, m³/s",
   "Время измерения": "Measurement time",
   "Источник метода": "Method source",
   "Код формулы": "Formula ID",

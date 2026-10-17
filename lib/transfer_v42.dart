@@ -158,7 +158,7 @@ class KrvTransfer {
   static WdcMeasurement _measurement(dynamic source) {
     _require(source is Map<String, dynamic>);
     final j = source as Map<String, dynamic>;
-    if (j['schemaVersion'] is num && (j['schemaVersion'] as num) > 5) {
+    if (j['schemaVersion'] is num && (j['schemaVersion'] as num) > 6) {
       throw const KrvException(
         'Архив создан более новой версией. Обновите приложение.',
       );
@@ -242,7 +242,7 @@ class KrvTransfer {
         jsonEncode({
           'format': 'krv',
           'version': 1,
-          'appVersion': '4.3.0',
+          'appVersion': '4.5.0',
           'records': manifest,
         }),
       );

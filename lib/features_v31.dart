@@ -455,7 +455,7 @@ class _MeasurementPhotosState extends State<MeasurementPhotos> {
                 children: [
                   Expanded(
                     child: Text(
-                      '${tr('Фотографии')} (${m.photos.length}/10)',
+                      '${tr('Фото')} (${m.photos.length}/10)',
                       style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                   ),
@@ -525,9 +525,13 @@ class _MeasurementPhotosState extends State<MeasurementPhotos> {
                 Center(
                   child: Text(
                     tr('Нажмите на фото, чтобы увеличить'),
-                    style: const TextStyle(fontSize: 12, color: Colors.black54),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                   ),
                 ),
+                const SizedBox(height: 16),
                 if (widget.editable)
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -538,7 +542,7 @@ class _MeasurementPhotosState extends State<MeasurementPhotos> {
                           initialValue: currentPhoto.caption,
                           maxLength: 32,
                           decoration: InputDecoration(
-                            labelText: tr('Подпись к фотографии'),
+                            labelText: tr('Подпись к фото'),
                           ),
                           onChanged: (value) {
                             currentPhoto.caption = value;
@@ -618,13 +622,17 @@ Future<List<int>> pdfBytes(WdcMeasurement m) async {
     (await rootBundle.load('assets/icon/app_icon.png')).buffer.asUint8List(),
   );
   final profile = pw.MemoryImage(await profilePng(m));
+  final iceImage =
+      m.iceCover && m.verticals.any((v) => v.iceThicknessCm != null)
+      ? pw.MemoryImage(await icePng44(m))
+      : null;
   final doc = pw.Document();
   final theme = pw.ThemeData.withFont(base: base, bold: bold);
   pw.Widget header(pw.Context context) => pw.Row(
     mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
     children: [
       pw.Text(
-        tr('Калькулятор расходов воды · 4.3'),
+        tr('Калькулятор расходов воды · 4.5'),
         style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700),
       ),
       pw.Image(logo, width: 52, height: 42, fit: pw.BoxFit.contain),
@@ -665,6 +673,10 @@ Future<List<int>> pdfBytes(WdcMeasurement m) async {
       _numCell(m.meanVelocityLevel, 3),
     ],
     [tr('Поправка уровня, м'), _numCell(m.levelCorrection, 3)],
+    if (m.geometry44 && (m.levelCorrection ?? 0) > 0) ...[
+      [tr('Способ достраивания ЛБ'), appliedBankMode45(m, true)],
+      [tr('Способ достраивания ПБ'), appliedBankMode45(m, false)],
+    ],
     [tr('Коэффициент ЛБ'), _numCell(m.bankCoeffLeft, 2)],
     [tr('Коэффициент ПБ'), _numCell(m.bankCoeffRight, 2)],
     [
@@ -706,7 +718,9 @@ Future<List<int>> pdfBytes(WdcMeasurement m) async {
         ),
         pw.SizedBox(height: 8),
         pw.Text(
-          '${tr('Расход воды')}: ${_numCell(m.discharge, 6)} ${tr('м³/с')}',
+          m.discharge == null
+              ? tr('Расход не определён')
+              : '${tr('Расход воды')}: ${_numCell(m.discharge, 6)} ${tr('м³/с')}',
           style: pw.TextStyle(fontSize: 15, fontWeight: pw.FontWeight.bold),
         ),
         pw.SizedBox(height: 6),
@@ -715,6 +729,10 @@ Future<List<int>> pdfBytes(WdcMeasurement m) async {
           style: const pw.TextStyle(fontSize: 11),
         ),
         pw.SizedBox(height: 8),
+        if (iceImage != null) ...[
+          heading(tr('Толщина льда')),
+          pw.Image(iceImage, width: 539, height: 142, fit: pw.BoxFit.contain),
+        ],
         pw.Image(profile, width: 539, height: 247, fit: pw.BoxFit.contain),
         pw.NewPage(freeSpace: 355),
         heading(tr('Характеристики створа')),

@@ -1,5 +1,5 @@
 name: wdc_3_0
-version: 4.3.0+10
+version: 4.5.0+12
 publish_to: "none"
 
 environment:
@@ -34,7 +34,10 @@ flutter:
   uses-material-design: true
 
   assets:
+    - assets/legal/LICENSE
+    - assets/legal/NOTICE
     - assets/icon/app_icon.png
+    - assets/fonts/LICENSE-Roboto.txt
     - assets/fonts/Roboto-Regular.ttf
     - assets/fonts/Roboto-Medium.ttf
   fonts:

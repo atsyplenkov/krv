@@ -91,10 +91,11 @@ void main() {
       final lines = csvContent(m).split('\n');
       final head = lines.first.split(';');
       final areaCol = head.indexOf('Площадь водного сечения потока, м2');
-      expect(head[areaCol + 1], 'Средняя скорость потока, м/с');
+      final velocityCol = head.indexOf('Средняя скорость потока, м/с');
+      expect(velocityCol, greaterThan(areaCol));
       final diameterCol = head.indexOf('Лопастной диаметр вертушки, см');
       for (final line in lines.skip(1)) {
-        expect(line.split(';')[areaCol + 1], '0.700000');
+        expect(line.split(';')[velocityCol], '0.700000');
         expect(line.split(';')[diameterCol], '5.00');
       }
       expect(csvContent(m), contains('"Контрольный замер; вода прозрачная."'));
@@ -390,7 +391,7 @@ void main() {
         () => Future<void>.delayed(const Duration(milliseconds: 100)),
       );
       await settleIo(tester);
-      expect(find.text('Фотографии (2/10)'), findsOneWidget);
+      expect(find.text('Фото (2/10)'), findsOneWidget);
       expect(m.photos.any((p) => p.caption == before), isFalse);
       expect(tester.widget<TextFormField>(caption).initialValue, isNot(before));
       await tester.tap(find.byType(Image).first);

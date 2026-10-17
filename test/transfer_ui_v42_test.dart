@@ -100,6 +100,22 @@ void main() {
     });
   }
 
+  Future<void> tapImport(WidgetTester t) async {
+    if (find.byKey(const ValueKey('import-krv')).evaluate().isEmpty) {
+      await t.tap(find.byIcon(Icons.settings_outlined));
+      await t.pumpAndSettle();
+    }
+    final button = find.byKey(const ValueKey('import-krv'));
+    await t.ensureVisible(button);
+    // A record may appear before the previous import finishes temporary-file cleanup.
+    // Wait for the real user action to become available, rather than tapping a disabled button.
+    for (var i = 0; i < 15 && t.widget<ListTile>(button).onTap == null; i++) {
+      await settleIo(t);
+    }
+    expect(t.widget<ListTile>(button).onTap, isNotNull);
+    await t.tap(button);
+  }
+
   Future<void> awaitTransfer(WidgetTester t, Finder until) async {
     for (var i = 0; i < 15 && until.evaluate().isEmpty; i++) {
       await settleIo(t);
@@ -118,11 +134,8 @@ void main() {
         ).writeAsString(jsonEncode(sample().toJson()));
       });
       await open(t, width: 320);
-      expect(find.text('v4.3'), findsOneWidget);
-      expect(
-        t.getCenter(find.byKey(const ValueKey('import-krv'))).dx,
-        greaterThan(t.getCenter(find.byIcon(Icons.settings_outlined)).dx),
-      );
+      expect(find.text('v4.5'), findsOneWidget);
+      expect(find.byKey(const ValueKey('import-krv')), findsNothing);
       await shot(t, 'home-$lang');
       await t.longPress(find.textContaining('Тестовая река').first);
       await t.pumpAndSettle();
@@ -149,7 +162,7 @@ void main() {
       AppSettings.current.language = lang;
       await prepare(t);
       await open(t);
-      await t.tap(find.byKey(const ValueKey('import-krv')));
+      await tapImport(t);
       await awaitTransfer(t, find.byType(KrvSummaryDialog));
       expect(find.text('${tr('Новых измерений')}: 1'), findsOneWidget);
       // Dialog is on the navigator overlay, verified for layout in both languages.
@@ -157,13 +170,16 @@ void main() {
       await t.tap(find.text(tr('Отмена')));
       await settleIo(t);
       expect(await t.runAsync(() => storage.loadAll()), isEmpty);
-      await t.tap(find.byKey(const ValueKey('import-krv')));
+      await tapImport(t);
       await awaitTransfer(t, find.byType(KrvSummaryDialog));
       await t.tap(find.text(tr('Добавить измерения')));
-      await awaitTransfer(t, find.textContaining('Тестовая река'));
+      await awaitTransfer(t, find.text('${tr('Добавлено измерений')}: 1'));
+      await t.pageBack();
+      await settleIo(t);
+      expect(find.textContaining('Тестовая река'), findsOneWidget);
       expect((await t.runAsync(() => storage.loadAll()))!.length, 1);
       expect(AppSettings.current.language, lang);
-      await t.tap(find.byKey(const ValueKey('import-krv')));
+      await tapImport(t);
       await awaitTransfer(t, find.byType(KrvSummaryDialog));
       expect(
         find.text('${tr('Уже имеются без изменений')}: 1'),
@@ -186,14 +202,14 @@ void main() {
     'Picker cancellation and invalid contents leave records unchanged',
     (t) async {
       await open(t);
-      await t.tap(find.byKey(const ValueKey('import-krv')));
+      await tapImport(t);
       await settleIo(t);
       expect(find.byType(KrvSummaryDialog), findsNothing);
       await t.runAsync(
         () => File('${dir.path}/wrong.krv').writeAsString('Not a KRV archive'),
       );
       picker.result = XFile('${dir.path}/wrong.krv');
-      await t.tap(find.byKey(const ValueKey('import-krv')));
+      await tapImport(t);
       await awaitTransfer(
         t,
         find.text('Файл повреждён или не является архивом КРВ.'),
@@ -220,11 +236,14 @@ void main() {
       });
       expect(picker.result!.name.endsWith('.krv'), isFalse);
       await open(t);
-      await t.tap(find.byKey(const ValueKey('import-krv')));
+      await tapImport(t);
       await awaitTransfer(t, find.byType(KrvSummaryDialog));
       expect(find.text('${tr('Новых измерений')}: 1'), findsOneWidget);
       await t.tap(find.text(tr('Добавить измерения')));
-      await awaitTransfer(t, find.textContaining('Тестовая река'));
+      await awaitTransfer(t, find.text('${tr('Добавлено измерений')}: 1'));
+      await t.pageBack();
+      await settleIo(t);
+      expect(find.textContaining('Тестовая река'), findsOneWidget);
       expect((await t.runAsync(() => storage.loadAll()))!.length, 1);
       expect(t.takeException(), isNull);
     });
