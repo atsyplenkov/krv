@@ -72,3 +72,6 @@ service-account*.json
 # Machine-local configuration
 local.properties
 .vscode/
+
+# Signing secrets (normally stored outside this repository)
+signing.properties
