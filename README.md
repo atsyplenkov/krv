@@ -43,7 +43,7 @@ This app was vibe-coded with the help of an AI assistant.
 Сборка: `build_release_wdc.bat`. Результат: `wdc_v4_5_1.apk`.
 Для запуска сценария без ожидания клавиши: `WDC_NONINTERACTIVE=1`.
 
-APK 4.5.1 доступен в GitHub Releases. Существующий сертификат сохранён для совместимости обновлений. Настройка подписи и Obtainium: [docs/ANDROID_RELEASE.md](docs/ANDROID_RELEASE.md). Установка на физическом телефоне требует проверки пользователем.
+APK 4.5.1 доступен в GitHub Releases. Существующий сертификат сохранён для совместимости обновлений. Настройка подписи и Obtainium: [docs/ANDROID_RELEASE.md](docs/ANDROID_RELEASE.md). Новые теги версий запускают проверки, сборку подписанного APK и публикацию в Releases. Obtainium обнаруживает выпуск при очередной проверке. Установка на физическом телефоне требует проверки пользователем.
 
 Репозиторий: https://github.com/olegegka/krv
 Ошибки и предложения: https://github.com/olegegka/krv/issues
