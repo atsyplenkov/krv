@@ -8,3 +8,12 @@ authors:
 version: "4.5.0"
 repository-code: "https://github.com/olegegka/krv"
 license: "Apache-2.0"
+
+date-released: '2026-10-17'
+url: 'https://github.com/olegegka/krv/releases/tag/v4.5.0'
+abstract: 'Offline hydrometric field measurements, water discharge and cross-section calculations, and PDF/CSV reports.'
+keywords:
+  - hydrology
+  - hydrometry
+  - water discharge
+  - Flutter

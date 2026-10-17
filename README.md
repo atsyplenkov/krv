@@ -43,10 +43,47 @@ This app was vibe-coded with the help of an AI assistant.
 Сборка: `build_release_wdc.bat`. Результат: `wdc_v4_5.apk`.
 Для запуска сценария без ожидания клавиши: `WDC_NONINTERACTIVE=1`.
 
-Исходники 4.5 подготовлены без сборки APK по просьбе автора. Границы и результаты проверки фиксируются в VALIDATION.md. Сгенерированные отчёты и журналы не входят в Git.
+Этот выпуск публикует исходный код. Готовый APK к выпуску не прилагается: конфигурация сборки пока использует отладочную подпись. Для распространения APK необходимо отдельно настроить постоянный ключ и проверить совместимость обновления. Границы проверки описаны в VALIDATION.md; журналы не входят в Git.
 
 Репозиторий: https://github.com/olegegka/krv
 Ошибки и предложения: https://github.com/olegegka/krv/issues
 Контакт: olegegkas@gmail.com
 
 При использовании в научной работе см. CITATION.cff. DOI и платёжные ссылки будут добавлены после их появления; сейчас они не указаны.
+
+## Quick start (English)
+
+An offline field application for recording hydrometric measurements and calculating
+water discharge and cross-section geometry. Russian and English interfaces; PDF/CSV
+reports and .krv archives with photographs. Author: Oleg Loshkov. Apache-2.0.
+
+Use Flutter **3.41.6** (Dart **3.11.4**) and run:
+
+```sh
+flutter pub get --enforce-lockfile
+flutter analyze --no-pub
+flutter test --no-pub --concurrency=1
+flutter run
+```
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development and numerical validation,
+[CHANGELOG.md](CHANGELOG.md) for changes, [SECURITY.md](SECURITY.md) for private security reports,
+and [CITATION.cff](CITATION.cff) for version-specific scientific citation.
+
+### Scientific limitations / Ограничения
+
+Results require checking against the chosen measurement method and field conditions.
+For disconnected wetted sections, version 4.5 warns but uses the existing combined
+algorithm; individual channels and their bank coefficients are not modelled.
+Automated tests do not certify suitability for a particular engineering decision.
+Android device installation and production signing are not verified by the source release.
+
+Версия 4.5 не моделирует отдельные рукава разделённого сечения и их береговые коэффициенты.
+Предупреждение об этом не заменяет методическую проверку результата.
+
+### Citation
+
+Loshkov, O. (2026). *Water Discharge Calculator* (Version 4.5.0) [Software].
+https://github.com/olegegka/krv/releases/tag/v4.5.0
+
+DOI has not been assigned. Cite the version used; do not treat the mutable main branch as a frozen release.

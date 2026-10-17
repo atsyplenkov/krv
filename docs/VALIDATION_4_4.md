@@ -1,7 +1,7 @@
 # Проверка КРВ / WDC 4.4
 
 Дата: 9 октября 2026 года. Версия 4.4.0+11, Android applicationId `krv.app`.
-Проект: `C:\Users\AORUS\WDC\v4.4\wdc_4_4`.
+Проект: `<local project directory>`.
 
 ## Результаты
 
