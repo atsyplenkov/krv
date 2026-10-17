@@ -632,7 +632,7 @@ Future<List<int>> pdfBytes(WdcMeasurement m) async {
     mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
     children: [
       pw.Text(
-        tr('Калькулятор расходов воды · 4.5'),
+        tr('Калькулятор расходов воды · 4.5.1'),
         style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700),
       ),
       pw.Image(logo, width: 52, height: 42, fit: pw.BoxFit.contain),

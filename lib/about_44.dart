@@ -1,8 +1,8 @@
 part of 'main.dart';
 
 class Project44 {
-  static const version = '4.5.0';
-  static const build = '12';
+  static const version = '4.5.1';
+  static const build = '13';
   static const email = 'olegegkas@gmail.com';
   static const repository = 'https://github.com/olegegka/krv';
   static const issues = '$repository/issues';
@@ -309,55 +309,16 @@ Future<Map<String, List<String>>> collectLicenses45() async {
   return {for (final e in notices.entries) e.key: e.value.toList()..sort()};
 }
 
-class LicensesScreen45 extends StatefulWidget {
+// Flutter groups notices by package and displays long texts on a separate page.
+// Avoid placing an unbounded SelectableText inside an expanding scrolling row.
+class LicensesScreen45 extends StatelessWidget {
   const LicensesScreen45({super.key});
-  @override
-  State<LicensesScreen45> createState() => _LicensesScreen45State();
-}
 
-class _LicensesScreen45State extends State<LicensesScreen45> {
-  late Future<Map<String, List<String>>> notices = collectLicenses45();
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: Text(tr('Лицензии стороннего ПО'))),
-    body: FutureBuilder<Map<String, List<String>>>(
-      future: notices,
-      builder: (context, snapshot) {
-        if (snapshot.hasError) {
-          return Center(
-            child: TextButton(
-              onPressed: () => setState(() => notices = collectLicenses45()),
-              child: Text(tr('Повторить')),
-            ),
-          );
-        }
-        if (!snapshot.hasData) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        final entries = snapshot.data!.entries.toList()
-          ..sort((a, b) => a.value.first.compareTo(b.value.first));
-        return ListView.builder(
-          itemCount: entries.length,
-          itemBuilder: (context, index) {
-            final e = entries[index];
-            return ExpansionTile(
-              key: PageStorageKey(index),
-              title: Text(
-                e.value.join(', '),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: SelectableText('${e.value.join(', ')}\n\n${e.key}'),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    ),
+  Widget build(BuildContext context) => LicensePage(
+    applicationName: Project44.name,
+    applicationVersion: Project44.version,
+    applicationLegalese: '© 2025–2026 Oleg Loshkov',
   );
 }
 
