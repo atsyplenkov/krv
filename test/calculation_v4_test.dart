@@ -86,7 +86,7 @@ void main() {
   test('Priority follows conditions, not number of unrelated points', () {
     final v = {for (final key in velocityKeys) key: 1.0};
     final config = CalculationConfig();
-    expect(calculateVelocity(v, config, special: true)!.method, 'six');
+    expect(calculateVelocity(v, config, special: true)!.method, 'sixSpecial');
     v.remove('04');
     expect(calculateVelocity(v, config, special: false)!.method, 'five');
     expect(calculateVelocity(v, config, special: true)!.method, 'threeSpecial');

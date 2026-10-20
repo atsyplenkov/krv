@@ -345,9 +345,9 @@ void main() {
           final rows = csvRows(csvContent(m));
           headers ??= rows.first;
           expect(rows.first, headers);
-          expect(rows.first, hasLength(88));
+          expect(rows.first, hasLength(89));
           for (final row in rows.skip(1)) {
-            expect(row, hasLength(88));
+            expect(row, hasLength(89));
           }
           final meta = jsonDecode(
             rows[1][headers.indexOf('measurement_metadata_json')],
@@ -471,7 +471,10 @@ void main() {
   );
   test('Published version and citation agree with the build manifest', () {
     final yaml = File('pubspec.yaml').readAsStringSync();
-    expect(yaml, contains('version: ${Project44.version}+${Project44.build}'));
+    expect(
+      yaml,
+      contains('version: ${Project44.releaseVersion}+${Project44.build}'),
+    );
     expect(
       File('CITATION.cff').readAsStringSync(),
       contains(Project44.version),
@@ -588,7 +591,7 @@ void main() {
         t
             .widget<FilledButton>(find.byKey(const ValueKey('add-sounding')))
             .onPressed,
-        isNull,
+        isNotNull,
       );
       await t.enterText(find.byKey(const ValueKey('sounding-ice')), '12.3456');
       await t.pump();

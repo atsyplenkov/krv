@@ -11,22 +11,17 @@ const velocityKeys = [
   '085',
   'bottom',
 ];
-const methodKeys = [
-  'six',
-  'five',
-  'three',
-  'two',
-  'one06',
-  'one02',
-  'oneSurface',
-  'threeSpecial',
-  'twoSpecial',
-  'oneSpecial',
-];
-
 Map<String, Map<String, double>> presetWeights(String preset) {
   final weights = <String, Map<String, double>>{
     'six': {'surface': 1, '02': 2, '04': 2, '06': 2, '08': 2, 'bottom': 1},
+    'sixSpecial': {
+      'surface': 1,
+      '02': 2,
+      '04': 2,
+      '06': 2,
+      '08': 2,
+      'bottom': 1,
+    },
     'five': {'surface': 1, '02': 3, '06': 3, '08': 2, 'bottom': 1},
     'three': {'02': 1, '06': 2, '08': 1},
     'two': {'02': 1, '08': 1},
@@ -62,7 +57,26 @@ class CalculationConfig {
   Map<String, Map<String, double>> get weights =>
       isCustom ? custom[int.parse(preset.substring(6))] : presetWeights(preset);
   CalculationConfig copy() => CalculationConfig.fromJson(toJson());
-  Map<String, dynamic> toJson() => {'preset': preset, 'custom': custom};
+  bool get hasIndependentSixWeights => custom.any(
+    (profile) => profile['six']!.entries.any(
+      (e) => profile['sixSpecial']![e.key] != e.value,
+    ),
+  );
+  Map<String, dynamic> toJson() => {
+    'preset': preset,
+    // Omit a redundant copy to keep old archive fingerprints stable.
+    'custom': [
+      for (final profile in custom)
+        {
+          for (final entry in profile.entries)
+            if (entry.key != 'sixSpecial' ||
+                profile['six']!.entries.any(
+                  (e) => entry.value[e.key] != e.value,
+                ))
+              entry.key: Map<String, double>.of(entry.value),
+        },
+    ],
+  };
   factory CalculationConfig.fromJson(Map<String, dynamic> json) {
     final preset = json['preset'] as String? ?? 'wmo';
     if (![
@@ -84,7 +98,13 @@ class CalculationConfig {
       for (var i = 0; i < 3; i++) {
         final profile = profiles[i] as Map;
         for (final method in result.custom[i].entries) {
-          final values = profile[method.key] as Map?;
+          // Versions through 4.5.1 shared the six-point weights. Copy their
+          // values into both independent maps to preserve previous results.
+          final values =
+              (method.key == 'sixSpecial' && !profile.containsKey('sixSpecial')
+                      ? profile['six']
+                      : profile[method.key])
+                  as Map?;
           if (values == null) throw const FormatException('Missing method');
           for (final key in method.value.keys.toList()) {
             final value = (values[key] as num?)?.toDouble();
@@ -126,9 +146,7 @@ VelocityCalculation? calculateVelocity(
   CalculationConfig config, {
   required bool special,
 }) {
-  final priority = special
-      ? ['six', 'threeSpecial', 'twoSpecial', 'oneSpecial']
-      : ['six', 'five', 'three', 'two', 'one06', 'one02', 'oneSurface'];
+  final priority = special ? specialMethods46 : ordinaryMethods46;
   final formulas = config.weights;
   for (final method in priority) {
     final weights = formulas[method];
@@ -221,4 +239,29 @@ String compactDischarge(double? value) {
   return result.contains('.')
       ? result.replaceFirst(RegExp(r'0+$'), '').replaceFirst(RegExp(r'\.$'), '')
       : result;
+}
+
+const ordinaryMethods46 = [
+  'six',
+  'five',
+  'three',
+  'two',
+  'one06',
+  'one02',
+  'oneSurface',
+];
+const specialMethods46 = [
+  'sixSpecial',
+  'threeSpecial',
+  'twoSpecial',
+  'oneSpecial',
+];
+
+String weightsFormula46(Map<String, double> weights) {
+  final numerator = weights.entries
+      .map((e) => '${inputNumber(e.value)} × ${velocityTitle(e.key)}')
+      .join(' + ');
+  if (weights.length == 1) return numerator;
+  final divisor = weights.values.fold<double>(0, (sum, weight) => sum + weight);
+  return '($numerator) / ${inputNumber(divisor)}';
 }

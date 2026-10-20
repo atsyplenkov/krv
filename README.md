@@ -1,12 +1,22 @@
 # Калькулятор расходов воды / Water Discharge Calculator
 
-Версия **4.5.1+13**, Android applicationId: `krv.app`.
+Версия **4.6.0+14** (в интерфейсе **v4.6**), Android applicationId: `krv.app`.
 Автор: **Олег Лошков / Oleg Loshkov**. Лицензия: Apache License 2.0, полный текст в LICENSE.
 
 Приложение навайбкожено с помощью ИИ-ассистента.
 This app was vibe-coded with the help of an AI assistant.
 
 КРВ помогает записывать полевые промеры и скорости течения, рассчитывать расход воды и характеристики поперечного сечения, хранить измерения и формировать отчёты без интернета. Доступны русский и английский интерфейсы, фотографии с подписями, PDF, CSV и перенос измерений в файлах .krv.
+
+## Изменения 4.6
+
+- Независимые шеститочечные коэффициенты для обычных условий и ледовых явлений / растительности; прежние настройки загружаются без изменения результатов.
+- Формулы средней скорости на вертикали под таблицами коэффициентов, уточнённые справки и область действия настроек.
+- Необязательное поле «Проект», точный и частичный поиск по проекту, сортировка по расходу воды.
+- Необязательная толщина льда и явное «н/д» / `N/A`. График строится при наличии значений на обоих берегах по доступным точкам, с вертикальными границами у берегов.
+- Отметка ледостава в списке измерений, компактные таблицы и короткие подсказки ввода.
+- Последовательное размещение таблиц PDF; альбомная страница требуется только для широкой таблицы. Единая схема CSV из 89 столбцов: `project` добавлен в конец, отсутствующее значение остаётся пустым.
+- Все изменения на русском и английском языках. Сохранены исправления прокрутки и лицензий из 4.5.1.
 
 ## Изменения 4.5
 
@@ -40,10 +50,10 @@ This app was vibe-coded with the help of an AI assistant.
 ## Разработка и сборка
 
 Проверки: `flutter analyze`, `flutter test --concurrency=1`.
-Сборка: `build_release_wdc.bat`. Результат: `wdc_v4_5_1.apk`.
+Сборка: `build_release_wdc.bat`. Результат: `wdc_v4_6.apk`.
 Для запуска сценария без ожидания клавиши: `WDC_NONINTERACTIVE=1`.
 
-APK 4.5.1 доступен в GitHub Releases. Существующий сертификат сохранён для совместимости обновлений. Настройка подписи и Obtainium: [docs/ANDROID_RELEASE.md](docs/ANDROID_RELEASE.md). Новые теги версий запускают проверки, сборку подписанного APK и публикацию в Releases. Obtainium обнаруживает выпуск при очередной проверке. Установка на физическом телефоне требует проверки пользователем.
+APK 4.6 доступен в GitHub Releases. Существующий сертификат сохранён для совместимости обновлений. Настройка подписи и Obtainium: [docs/ANDROID_RELEASE.md](docs/ANDROID_RELEASE.md). Новые теги версий запускают проверки, сборку подписанного APK и публикацию в Releases. Obtainium обнаруживает выпуск при очередной проверке. Установка на физическом телефоне требует проверки пользователем.
 
 Репозиторий: https://github.com/olegegka/krv
 Ошибки и предложения: https://github.com/olegegka/krv/issues
@@ -73,18 +83,18 @@ and [CITATION.cff](CITATION.cff) for version-specific scientific citation.
 ### Scientific limitations / Ограничения
 
 Results require checking against the chosen measurement method and field conditions.
-For disconnected wetted sections, version 4.5 warns but uses the existing combined
+For disconnected wetted sections, version 4.6 warns but uses the existing combined
 algorithm; individual channels and their bank coefficients are not modelled.
 Automated tests do not certify suitability for a particular engineering decision.
-Android device installation and production signing are not verified by the source release.
+The release workflow verifies the APK signing identity. Installation and field use on a physical device still require user verification.
 
-Версия 4.5 не моделирует отдельные рукава разделённого сечения и их береговые коэффициенты.
+Версия 4.6 не моделирует отдельные рукава разделённого сечения и их береговые коэффициенты.
 Предупреждение об этом не заменяет методическую проверку результата.
 
 ### Citation
 
-Loshkov, O. (2026). *Water Discharge Calculator* (Version 4.5.1) [Software].
-https://github.com/olegegka/krv/releases/tag/v4.5.1
+Loshkov, O. (2026). *Water Discharge Calculator* (Version 4.6) [Software].
+https://github.com/olegegka/krv/releases/tag/v4.6.0
 
 DOI has not been assigned. Cite the version used; do not treat the mutable main branch as a frozen release.
 

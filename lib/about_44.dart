@@ -1,8 +1,9 @@
 part of 'main.dart';
 
 class Project44 {
-  static const version = '4.5.1';
-  static const build = '13';
+  static const version = '4.6';
+  static const releaseVersion = '4.6.0';
+  static const build = '14';
   static const email = 'olegegkas@gmail.com';
   static const repository = 'https://github.com/olegegka/krv';
   static const issues = '$repository/issues';
@@ -33,9 +34,9 @@ String citation45({required bool iso, DateTime? date}) {
     'December',
   ];
   if (iso) {
-    return 'LOSHKOV, O. D., 2026. Water Discharge Calculator [mobile application]. Version 4.5. Electronic data. GitHub. Available from: ${Project44.repository} [Accessed ${now.day} ${months[now.month - 1]} ${now.year}]';
+    return 'LOSHKOV, O. D., 2026. Water Discharge Calculator [mobile application]. Version 4.6. Electronic data. GitHub. Available from: ${Project44.repository} [Accessed ${now.day} ${months[now.month - 1]} ${now.year}]';
   }
-  return 'О. Д. Лошков. Калькулятор расходов воды : [Электронный ресурс] : мобильное приложение / разработчик О. Д. Лошков. – Версия 4.5. – Электрон. дан. – [Б. м.] : GitHub, 2026. – URL: ${Project44.repository} (дата обращения: ${now.day.toString().padLeft(2, '0')}.${now.month.toString().padLeft(2, '0')}.${now.year}).';
+  return 'О. Д. Лошков. Калькулятор расходов воды : [Электронный ресурс] : мобильное приложение / разработчик О. Д. Лошков. – Версия 4.6. – Электрон. дан. – [Б. м.] : GitHub, 2026. – URL: ${Project44.repository} (дата обращения: ${now.day.toString().padLeft(2, '0')}.${now.month.toString().padLeft(2, '0')}.${now.year}).';
 }
 
 Future<void> openExternal44(BuildContext context, String url) async {

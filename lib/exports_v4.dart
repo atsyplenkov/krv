@@ -50,15 +50,10 @@ Map<String, List<VerticalPoint>> usedFormulaGroups(WdcMeasurement m) {
   return groups;
 }
 
-String formulaId(WdcMeasurement m, VerticalPoint v) {
-  final index = usedFormulaGroups(m).keys.toList().indexOf(formulaSignature(v));
-  return index < 0 ? '' : 'F${index + 1}';
-}
-
 String formulaDescription(VerticalPoint v) {
   final c = usedCalculation(v);
   if (c == null) return tr('н/д');
-  return '(${c.weights.entries.map((e) => '${inputNumber(e.value)} × ${velocityTitle(e.key)}').join(' + ')}) / ${inputNumber(c.divisor)}';
+  return weightsFormula46(c.weights);
 }
 
 String csvContentV4(WdcMeasurement m) {
@@ -235,10 +230,10 @@ pw.Widget reportTable(List<String> headers, List<List<String>> data) =>
           ),
       ],
     );
-pw.Widget soundingReportTable(WdcMeasurement m) {
+ReportTable46 soundingReportData46(WdcMeasurement m) {
   final depth2 = m.verticals.any((v) => v.depth2 != null);
   final bottom = m.verticals.any((v) => v.bottomType.trim().isNotEmpty);
-  return reportTable(
+  return ReportTable46(
     [
       tr('Берег'),
       tr('Расст., м'),
@@ -259,21 +254,65 @@ pw.Widget soundingReportTable(WdcMeasurement m) {
             _numCell(v.avgDepth, 3),
             if (bottom) v.bottomType,
             if (m.iceCover && m.verticals.any((v) => v.iceThicknessCm != null))
-              _numCell(v.iceThicknessCm, 2),
+              v.iceThicknessCm == null
+                  ? tr('н/д')
+                  : _numCell(v.iceThicknessCm, 2),
           ],
         )
         .toList(),
   );
 }
 
-List<pw.Widget> velocityReportTables(WdcMeasurement m) {
+class ReportTable46 {
+  ReportTable46(this.headers, this.rows);
+  final List<String> headers;
+  final List<List<String>> rows;
+  List<double> get minimumWidths => [
+    for (var i = 0; i < headers.length; i++)
+      [headers[i], ...rows.map((r) => r[i])].fold<double>(0, (width, text) {
+        // Words may wrap as before; numbers and notation must stay intact.
+        for (final line in text.split(RegExp(r'\s+'))) {
+          final painter = TextPainter(
+            text: TextSpan(
+              text: line,
+              style: const TextStyle(fontFamily: 'WdcReport', fontSize: 10),
+            ),
+            textDirection: ui.TextDirection.ltr,
+          )..layout();
+          width = math.max(width, painter.width + 8);
+          painter.dispose();
+        }
+        return width;
+      }),
+  ];
+  bool get needsLandscape =>
+      minimumWidths.fold<double>(0, (a, b) => a + b) >
+      PdfPageFormat.a4.width - 56;
+  pw.Widget get widget => reportTable(headers, rows);
+}
+
+class ReportSection46 {
+  ReportSection46(this.widgets, {this.landscape = false});
+  final List<pw.Widget> widgets;
+  final bool landscape;
+}
+
+List<ReportSection46> velocityReportSections46(WdcMeasurement m) {
+  // Build the formula index once, rather than regrouping all verticals for
+  // every table row and every formula. IDs retain their first-use order.
+  final groups = usedFormulaGroups(m);
+  final formulaIds = <VerticalPoint, String>{
+    for (final entry in groups.values.indexed)
+      for (final vertical in entry.$2) vertical: 'F${entry.$1 + 1}',
+  };
   final rows = m.verticals
       .where((v) => v.isSpeedVertical || v.partialDischarge != null)
       .toList();
   final keys = velocityKeys
       .where((key) => rows.any((v) => v.velocityPoints[key]!.value != null))
       .toList();
-  final widgets = <pw.Widget>[];
+  final sections = <ReportSection46>[];
+  var widgets = <pw.Widget>[pw.NewPage(freeSpace: 80)];
   widgets.add(
     pw.Text(
       tr('Таблица скоростных вертикалей'),
@@ -281,27 +320,29 @@ List<pw.Widget> velocityReportTables(WdcMeasurement m) {
     ),
   );
   widgets.add(pw.SizedBox(height: 6));
-  widgets.add(
-    reportTable(
-      [
-        tr('Расст., м'),
-        tr('Глуб., м'),
-        ...keys.map((k) => '${velocityTitle(k)}\n${tr('м/с')}'),
-        tr('Uср, м/с'),
-      ],
-      rows
-          .map(
-            (v) => [
-              _numCell(v.distance, 3),
-              _numCell(v.correctedDepth ?? v.avgDepth, 3),
-              ...keys.map((k) => _numCell(v.velocityPoints[k]!.value, 4)),
-              _numCell(v.avgVelocity, 4),
-            ],
-          )
-          .toList(),
-    ),
+  final velocityData = ReportTable46(
+    [
+      tr('Расст., м'),
+      tr('Глуб., м'),
+      ...keys.map((k) => '${velocityTitle(k)}\n${tr('м/с')}'),
+      tr('Uср, м/с'),
+    ],
+    rows
+        .map(
+          (v) => [
+            _numCell(v.distance, 3),
+            _numCell(v.correctedDepth ?? v.avgDepth, 3),
+            ...keys.map((k) => _numCell(v.velocityPoints[k]!.value, 4)),
+            _numCell(v.avgVelocity, 4),
+          ],
+        )
+        .toList(),
   );
-  widgets.add(pw.SizedBox(height: 14));
+  widgets.add(velocityData.widget);
+  sections.add(
+    ReportSection46(widgets, landscape: velocityData.needsLandscape),
+  );
+  widgets = [pw.NewPage(freeSpace: 94), pw.SizedBox(height: 14)];
   widgets.add(
     pw.Text(
       tr('Таблица расчёта расхода воды'),
@@ -309,30 +350,29 @@ List<pw.Widget> velocityReportTables(WdcMeasurement m) {
     ),
   );
   widgets.add(pw.SizedBox(height: 6));
-  widgets.add(
-    reportTable(
-      [
-        tr('Расст., м'),
-        tr('Uср, м/с'),
-        tr('Площадь отсека, м²'),
-        tr('Частичный расход, м³/с'),
-        tr('Код формулы'),
-        tr('Ледовые явл. / раст.'),
-      ],
-      rows
-          .map(
-            (v) => [
-              _numCell(v.distance, 3),
-              _numCell(v.avgVelocity, 4),
-              _numCell(v.sectionArea, 6),
-              _numCell(v.partialDischarge, 6),
-              '${formulaId(m, v)}${v.individualConfig != null ? ' *' : ''}',
-              v.special ? tr('Да') : tr('Нет'),
-            ],
-          )
-          .toList(),
-    ),
+  final dischargeData = ReportTable46(
+    [
+      tr('Расст., м'),
+      tr('Uср, м/с'),
+      tr('Площадь отсека, м²'),
+      tr('Частичный расход, м³/с'),
+      tr('Код формулы'),
+      tr('Ледовые явл. / раст.'),
+    ],
+    rows
+        .map(
+          (v) => [
+            _numCell(v.distance, 3),
+            _numCell(v.avgVelocity, 4),
+            _numCell(v.sectionArea, 6),
+            _numCell(v.partialDischarge, 6),
+            '${formulaIds[v] ?? ''}${v.individualConfig != null ? ' *' : ''}',
+            v.special ? tr('Да') : tr('Нет'),
+          ],
+        )
+        .toList(),
   );
+  widgets.add(dischargeData.widget);
   if (rows.any((v) => v.individualConfig != null)) {
     widgets.add(pw.Text('* ${tr('Индивидуальный метод')}'));
   }
@@ -345,7 +385,7 @@ List<pw.Widget> velocityReportTables(WdcMeasurement m) {
       ),
     ),
   );
-  for (final group in usedFormulaGroups(m).values) {
+  for (final group in groups.values) {
     final v = group.first;
     widgets.add(
       pw.Inseparable(
@@ -355,7 +395,7 @@ List<pw.Widget> velocityReportTables(WdcMeasurement m) {
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
               pw.Text(
-                '${formulaId(m, v)} · ${presetTitle(v.effectiveConfig?.preset ?? 'legacy')} · ${methodTitle(usedCalculation(v)!.method)}',
+                '${formulaIds[v]} · ${presetTitle(v.effectiveConfig?.preset ?? 'legacy')} · ${methodTitle(usedCalculation(v)!.method)}',
                 style: pw.TextStyle(
                   fontSize: 11,
                   fontWeight: pw.FontWeight.bold,
@@ -374,5 +414,8 @@ List<pw.Widget> velocityReportTables(WdcMeasurement m) {
       ),
     );
   }
-  return widgets;
+  sections.add(
+    ReportSection46(widgets, landscape: dischargeData.needsLandscape),
+  );
+  return sections;
 }

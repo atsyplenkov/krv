@@ -40,6 +40,27 @@ String bankLabel(String? bank) => bank == null
     : bank;
 
 const english = <String, String>{
+  'По расходу воды': 'By discharge',
+  'Точное совпадение проекта': 'Exact project match',
+  'Опционально': 'Optional',
+  'В метрах': 'In metres',
+  'В сантиметрах': 'In centimetres',
+  'Уровень воды на начало промеров, м': 'Water level at start of sounding, m',
+  'Уровень воды на конец промеров, м': 'Water level at end of sounding, m',
+  'Вернуть по умолчанию для приложения': 'Restore application defaults',
+  'Вернуть по умолчанию для данного расчёта':
+      'Restore defaults for this discharge measurement',
+  'Вернуть по умолчанию для всех вертикалей в данном расчёте':
+      'Use the common defaults for verticals in this discharge measurement',
+  icePerimeterHelp46:
+      'The ice cover is included in the calculation of the wetted perimeter.',
+  'Выбранный здесь набор коэффициентов для расчёта средней скорости на вертикали будет использоваться по умолчанию во всех новых измерениях расхода воды.':
+      'The coefficient set selected here for calculating the mean velocity in a vertical will be used by default in all new discharge measurements.',
+  'Выбранный здесь набор коэффициентов для расчёта средней скорости на вертикали будет использоваться для всех скоростных вертикалей в данном измерении расхода воды, кроме вертикалей с индивидуальным методом.':
+      'The coefficient set selected here for calculating the mean velocity in a vertical will apply to all velocity verticals in this discharge measurement, except those with an individually assigned method.',
+  'Выбранный здесь набор коэффициентов для расчёта средней скорости на вертикали будет использоваться только для данной скоростной вертикали в данном измерении расхода воды.':
+      'The coefficient set selected here for calculating the mean velocity in a vertical will apply only to this velocity vertical in this discharge measurement.',
+
   'вместо продолжения склона': 'instead of extending the slope',
   "Импортировать файл .krv": "Import a .krv file",
   "Полная версия": "Full text",
@@ -106,25 +127,25 @@ const english = <String, String>{
   aboutText:
       'This app was vibe-coded by Oleg Loshkov, a student at the Department of Land Hydrology, Faculty of Geography, Lomonosov Moscow State University, in 2025-26.\n\nMethodological basis:\n- Guidelines MI 1759-87;\n- WMO Guide to Hydrological Practices No. 168, sixth edition\n\nFeedback, support and collaboration:',
   coefficientsIntro:
-      'The tables below contain velocity weights for different depths and calculation methods. You can use the provided sets or configure your own.',
+      'The tables below contain weighting coefficients for point velocities measured at different depths, used to calculate the mean velocity in a vertical. You can use the predefined coefficient sets or specify your own.',
   coefficientsLimits:
       'Coefficients must be greater than zero, no greater than 1000, and have no more than 3 decimal places.',
   specialRules:
-      'Ice conditions / aquatic vegetation use a separate coefficient table below the normal table. Under these conditions, the app selects the first available method from top to bottom in that table only. If none can be calculated, mean velocity is unavailable; the app does not fall back to normal-condition methods.',
+      'Ice conditions / aquatic vegetation use a separate coefficient table below the normal table. Under these conditions, the app selects the first available method from top to bottom in that table only. If the available point measurements are insufficient for these methods, the mean velocity in the vertical cannot be calculated; the app does not fall back to normal-condition methods.',
   specialExample:
-      'In ice or aquatic vegetation conditions, mean velocity is calculated using special-condition methods. For example, with velocities at 0.2h, 0.6h and 0.8h, the calculation uses the pair at 0.2h and 0.8h. If there is insufficient data for a special-condition method, mean velocity is unavailable.',
+      'Under ice conditions or in the presence of aquatic vegetation, the mean velocity in a vertical is calculated using special-condition methods. For example, with velocities at 0.2h, 0.6h and 0.8h, the calculation uses the pair at 0.2h and 0.8h. If there is insufficient data for a special-condition method, the mean velocity in the vertical cannot be calculated.',
   iceDepthHelp:
-      'Depths entered under ice cover are treated as effective water depths excluding ice thickness. Ice cover is included in the wetted perimeter calculation.',
+      'Depths entered under ice cover are treated as effective water depths, excluding ice thickness.',
 
   "Исправьте некорректные значения скорости": "Correct invalid velocity values",
   "Некорректное число": "Invalid number",
   "Горизонт": "Measurement depth",
   "Коэффициент": "Coefficient",
   "Настройки": "Settings",
-  "v4.5.1": "v4.5.1",
+  "v4.6": "v4.6",
   "Калькулятор Расходов Воды": "Water Discharge Calculator",
-  "Калькулятор расходов воды 4.5.1": "Water Discharge Calculator 4.5.1",
-  "Калькулятор расходов воды · 4.5.1": "Water Discharge Calculator · 4.5.1",
+  "Калькулятор расходов воды 4.6": "Water Discharge Calculator 4.6",
+  "Калькулятор расходов воды · 4.6": "Water Discharge Calculator · 4.6",
   "Язык": "Language",
   "Как в системе": "System default",
   "Автоматически получать координаты": "Get coordinates automatically",
@@ -175,7 +196,7 @@ const english = <String, String>{
   "Ледостав": "Ice cover",
   "Ледостав включён для всего створа.":
       "Ice cover is enabled for the whole cross-section.",
-  "Глубина — рабочая толщина воды безо льда. Лёд увеличивает смоченный периметр на ширину створа.":
+  "Глубина — рабочая глубина безо льда. Лёд увеличивает смоченный периметр на ширину створа.":
       "Enter effective water depth, excluding ice. Ice adds the cross-section width to the wetted perimeter.",
   "Рабочая глубина": "Effective water depth",
   "Расстояние от дна": "Height above bed",
@@ -191,7 +212,7 @@ const english = <String, String>{
   "м/с": "m/s",
   "м²": "m²",
   "м³/с": "m³/s",
-  "н/д": "n/a",
+  "н/д": "N/A",
   "Да": "Yes",
   "Нет": "No",
   "Отмена": "Cancel",

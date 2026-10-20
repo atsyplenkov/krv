@@ -165,8 +165,8 @@ void main() {
       final rows = csvRows(
         await (await WdcStorage.instance.exportCsv(m)).readAsString(),
       );
-      expect(rows.first.length, 88);
-      expect(rows.skip(1).every((r) => r.length == 88), isTrue);
+      expect(rows.first.length, 89);
+      expect(rows.skip(1).every((r) => r.length == 89), isTrue);
       final profile = jsonDecode(
         rows[1][rows.first.indexOf('calculated_profile_json')],
       );

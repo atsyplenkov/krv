@@ -587,6 +587,7 @@ class WdcMeasurement {
     this.completed = false,
     this.river = '',
     this.site = '',
+    this.project = '',
     this.levelSoundingStart,
     this.levelSoundingStartAt,
     this.levelSoundingEnd,
@@ -638,6 +639,8 @@ class WdcMeasurement {
   bool geometry44;
   bool leftExtrapolation;
   bool rightExtrapolation;
+  // Historical metadata is retained for archive identity, never used to
+  // require ice observations in 4.6.
   bool requireIceThickness;
   void bindCalculation() {
     for (final v in verticals) {
@@ -649,6 +652,7 @@ class WdcMeasurement {
   bool completed;
   String river;
   String site;
+  String project;
 
   double? levelSoundingStart;
   String? levelSoundingStartAt;
@@ -706,7 +710,16 @@ class WdcMeasurement {
     'calculationConfig': calculationConfig?.toJson(),
     'iceCover': iceCover,
     'schemaVersion':
-        geometry44 || verticals.any((v) => v.iceThicknessCm != null) ? 6 : 5,
+        project.isNotEmpty ||
+            [
+              calculationConfig,
+              _initialCalculationConfig,
+              ...verticals.map((v) => v.individualConfig),
+            ].any((config) => config?.hasIndependentSixWeights == true)
+        ? 7
+        : geometry44 || verticals.any((v) => v.iceThicknessCm != null)
+        ? 6
+        : 5,
     if (geometry44) 'geometry44': true,
     if (geometry44) 'leftExtrapolation': leftExtrapolation,
     if (geometry44) 'rightExtrapolation': rightExtrapolation,
@@ -717,6 +730,7 @@ class WdcMeasurement {
     'completed': completed,
     'river': river,
     'site': site,
+    if (project.isNotEmpty) 'project': project,
     'levelSoundingStart': levelSoundingStart,
     'levelSoundingStartAt': levelSoundingStartAt,
     'levelSoundingEnd': levelSoundingEnd,
@@ -748,7 +762,6 @@ class WdcMeasurement {
 
   factory WdcMeasurement.empty({double? lat, double? lon}) => WdcMeasurement(
     geometry44: true,
-    requireIceThickness: true,
     id: uid(),
     createdAt: nowIso(),
     utcOffsetMinutes: DateTime.now().timeZoneOffset.inMinutes,
@@ -782,6 +795,7 @@ class WdcMeasurement {
     completed: json['completed'] as bool? ?? false,
     river: json['river'] as String? ?? '',
     site: json['site'] as String? ?? '',
+    project: json['project'] as String? ?? '',
     levelSoundingStart: (json['levelSoundingStart'] as num?)?.toDouble(),
     levelSoundingStartAt: json['levelSoundingStartAt'] as String?,
     levelSoundingEnd: (json['levelSoundingEnd'] as num?)?.toDouble(),
@@ -1217,11 +1231,41 @@ void _computeVelocitySections(WdcMeasurement m, {bool excludeDry = false}) {
 // Home
 // =============================
 
-enum SortField { river, site, date }
+enum SortField { river, site, date, discharge }
+
+int compareMeasurements46(
+  WdcMeasurement a,
+  WdcMeasurement b,
+  SortField field,
+  bool descending,
+) {
+  int names(String x, String y) =>
+      x.trim().toLowerCase().compareTo(y.trim().toLowerCase());
+  // Unknown discharge follows numeric results, in either sort direction.
+  if (field == SortField.discharge &&
+      (a.discharge == null || b.discharge == null)) {
+    if (a.discharge != b.discharge) return a.discharge == null ? 1 : -1;
+  }
+  final primary = switch (field) {
+    SortField.river => names(a.river, b.river),
+    SortField.site => names(a.site, b.site),
+    SortField.date => a.createdDate.compareTo(b.createdDate),
+    SortField.discharge => (a.discharge ?? 0).compareTo(b.discharge ?? 0),
+  };
+  if (primary != 0) return descending ? -primary : primary;
+  final river = names(a.river, b.river);
+  if (river != 0) return river;
+  final site = names(a.site, b.site);
+  if (site != 0) return site;
+  final date = a.createdDate.compareTo(b.createdDate);
+  return date != 0 ? date : a.id.compareTo(b.id);
+}
 
 class SearchSettings {
   String river = '';
   String site = '';
+  String project = '';
+  bool projectExact = false;
   bool riverExact = false;
   bool siteExact = false;
   DateTime? from;
@@ -1230,6 +1274,7 @@ class SearchSettings {
   bool get active =>
       river.trim().isNotEmpty ||
       site.trim().isNotEmpty ||
+      project.trim().isNotEmpty ||
       from != null ||
       to != null;
 }
@@ -1332,6 +1377,9 @@ class _HomeScreenState extends State<HomeScreen>
     var finished = _all.where((m) => m.completed).where((m) {
       if (!_matchText(m.river, _search.river, _search.riverExact)) return false;
       if (!_matchText(m.site, _search.site, _search.siteExact)) return false;
+      if (!_matchText(m.project, _search.project, _search.projectExact)) {
+        return false;
+      }
       final d = DateTime(
         m.createdDate.year,
         m.createdDate.month,
@@ -1342,18 +1390,9 @@ class _HomeScreenState extends State<HomeScreen>
       return true;
     }).toList();
 
-    int cmp(WdcMeasurement a, WdcMeasurement b) {
-      switch (_sortField) {
-        case SortField.river:
-          return a.river.toLowerCase().compareTo(b.river.toLowerCase());
-        case SortField.site:
-          return a.site.toLowerCase().compareTo(b.site.toLowerCase());
-        case SortField.date:
-          return a.createdDate.compareTo(b.createdDate);
-      }
-    }
-
-    finished.sort((a, b) => _descending ? -cmp(a, b) : cmp(a, b));
+    finished.sort(
+      (a, b) => compareMeasurements46(a, b, _sortField, _descending),
+    );
     return [...unfinished, ...finished];
   }
 
@@ -1499,6 +1538,7 @@ class _HomeScreenState extends State<HomeScreen>
   Future<void> _showSearchDialog() async {
     final riverC = TextEditingController(text: _search.river);
     final siteC = TextEditingController(text: _search.site);
+    final projectC = TextEditingController(text: _search.project);
     final fromC = TextEditingController(
       text: _search.from == null ? '' : dateHuman(_search.from!),
     );
@@ -1507,6 +1547,7 @@ class _HomeScreenState extends State<HomeScreen>
     );
     var riverExact = _search.riverExact;
     var siteExact = _search.siteExact;
+    var projectExact = _search.projectExact;
 
     final ok = await showDialog<bool>(
       context: context,
@@ -1536,6 +1577,18 @@ class _HomeScreenState extends State<HomeScreen>
                   value: siteExact,
                   onChanged: (v) => setDialogState(() => siteExact = v),
                   title: Text(tr('Точное совпадение створа')),
+                ),
+                TextField(
+                  key: const ValueKey('search-project'),
+                  controller: projectC,
+                  decoration: InputDecoration(labelText: tr('Проект')),
+                ),
+                SwitchListTile(
+                  key: const ValueKey('search-project-exact'),
+                  contentPadding: EdgeInsets.zero,
+                  value: projectExact,
+                  onChanged: (v) => setDialogState(() => projectExact = v),
+                  title: Text(tr('Точное совпадение проекта')),
                 ),
                 TextField(
                   controller: fromC,
@@ -1582,6 +1635,8 @@ class _HomeScreenState extends State<HomeScreen>
       setState(() {
         _search.river = riverC.text;
         _search.site = siteC.text;
+        _search.project = projectC.text;
+        _search.projectExact = projectExact;
         _search.riverExact = riverExact;
         _search.siteExact = siteExact;
         _search.from = from;
@@ -1603,6 +1658,8 @@ class _HomeScreenState extends State<HomeScreen>
                   onPressed: () => setState(() {
                     _search.river = '';
                     _search.site = '';
+                    _search.project = '';
+                    _search.projectExact = false;
                     _search.from = null;
                     _search.to = null;
                     _search.riverExact = false;
@@ -1618,7 +1675,7 @@ class _HomeScreenState extends State<HomeScreen>
               ? (compactToolbar
                     ? '${_selected.length}'
                     : '${tr('Выбрано')}: ${_selected.length}')
-              : 'v4.5.1',
+              : 'v4.6',
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
@@ -1721,6 +1778,10 @@ class _HomeScreenState extends State<HomeScreen>
                       value: SortField.date,
                       child: Text(tr('По дате')),
                     ),
+                    PopupMenuItem(
+                      value: SortField.discharge,
+                      child: Text(tr('По расходу воды')),
+                    ),
                   ],
                 ),
                 IconButton(
@@ -1799,6 +1860,11 @@ class _HomeScreenState extends State<HomeScreen>
                                             ? Icons.water_drop_outlined
                                             : Icons.edit_note,
                                       ),
+                                      if (m.iceCover)
+                                        Tooltip(
+                                          message: tr('Ледостав'),
+                                          child: const IceMark46(),
+                                        ),
                                       if (m.completed && m.warnings.isNotEmpty)
                                         Tooltip(
                                           message: tr('Предупреждения'),
@@ -2214,7 +2280,9 @@ class _SoundingScreenState extends State<SoundingScreen>
     if (distance == null ||
         depth == null ||
         depth < 0 ||
-        (m.iceCover && (ice == null || ice < 0))) {
+        (m.iceCover &&
+            iceC.text.trim().isNotEmpty &&
+            (ice == null || !ice.isFinite || ice < 0))) {
       return;
     }
     final dd = _metres(distance);
@@ -2242,7 +2310,7 @@ class _SoundingScreenState extends State<SoundingScreen>
           distance: dd,
           depth1: _metres(depth),
           bottomType: bottomC.text.trim(),
-          iceThicknessCm: m.iceCover ? roundTo(ice!, 2) : null,
+          iceThicknessCm: m.iceCover && ice != null ? roundTo(ice, 2) : null,
           depth1At: measurementNow(m),
         ),
       );
@@ -2304,11 +2372,6 @@ class _SoundingScreenState extends State<SoundingScreen>
   }
 
   String? _validateBeforeVelocity() {
-    if (m.iceCover &&
-        m.requireIceThickness &&
-        m.verticals.any((v) => v.iceThicknessCm == null)) {
-      return '${tr('Допишите толщину льда на вертикалях')}: ${m.verticals.where((v) => v.iceThicknessCm == null).map((v) => inputNumber(v.distance)).join(', ')} ${tr('м')}';
-    }
     if (m.river.trim().isEmpty ||
         m.site.trim().isEmpty ||
         m.levelSoundingStart == null ||
@@ -2432,9 +2495,23 @@ class _SoundingScreenState extends State<SoundingScreen>
               },
             ),
             const SizedBox(height: 10),
+            TextFormField(
+              key: const ValueKey('measurement-project'),
+              initialValue: m.project,
+              decoration: InputDecoration(
+                labelText: tr('Проект'),
+                hintText: tr('Опционально'),
+              ),
+              inputFormatters: [LengthLimitingTextInputFormatter(128)],
+              onChanged: (value) {
+                m.project = value.trim();
+                _scheduleSave();
+              },
+            ),
+            const SizedBox(height: 10),
             NumField(
-              label: tr('Уровень воды на начало промерных работ'),
-              hint: tr('Значение в метрах'),
+              label: tr('Уровень воды на начало промеров, м'),
+              hint: tr('В метрах'),
               initial: m.levelSoundingStart,
               maxLength: 10,
               onChanged: (v) {
@@ -2489,7 +2566,6 @@ class _SoundingScreenState extends State<SoundingScreen>
                 onChanged: (value) {
                   setState(() {
                     m.iceCover = value ?? false;
-                    if (m.iceCover) m.requireIceThickness = true;
                     recalcAll(m);
                   });
                   _scheduleSave();
@@ -2553,8 +2629,8 @@ class _SoundingScreenState extends State<SoundingScreen>
             if (secondBankReady) ...[
               const SizedBox(height: 10),
               NumField(
-                label: tr('Уровень воды на конец промерных работ'),
-                hint: tr('Значение в метрах'),
+                label: tr('Уровень воды на конец промеров, м'),
+                hint: tr('В метрах'),
                 initial: m.levelSoundingEnd,
                 maxLength: 10,
                 onChanged: (v) {
@@ -2625,11 +2701,14 @@ class _SoundingScreenState extends State<SoundingScreen>
   bool _entryReady(bool bank) {
     final distance = parseNumRu((bank ? _bankDistanceC : _distanceC).text);
     final depth = parseNumRu((bank ? _bankDepthC : _depthC).text);
-    final ice = parseNumRu((bank ? _bankIceC : _iceC).text);
+    final iceText = (bank ? _bankIceC : _iceC).text.trim();
+    final ice = parseNumRu(iceText);
     return distance != null &&
         depth != null &&
         depth >= 0 &&
-        (!m.iceCover || (ice != null && ice >= 0));
+        (!m.iceCover ||
+            iceText.isEmpty ||
+            (ice != null && ice.isFinite && ice >= 0));
   }
 
   Widget _entryFields(bool bank, bool ready) {
@@ -2651,8 +2730,8 @@ class _SoundingScreenState extends State<SoundingScreen>
       decoration: InputDecoration(
         labelText: label,
         hintText: length
-            ? tr(_centimetres ? 'Значение в сантиметрах' : 'Значение в метрах')
-            : tr('Значение в сантиметрах'),
+            ? tr(_centimetres ? 'В сантиметрах' : 'В метрах')
+            : tr('В сантиметрах'),
       ),
       onChanged: (text) => setState(() => _recordInput(parseNumRu(text))),
       onEditingComplete: () {
@@ -2758,6 +2837,8 @@ class _SoundingScreenState extends State<SoundingScreen>
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: DataTable(
+        horizontalMargin: 6,
+        columnSpacing: 12,
         columns: [
           DataColumn(label: Text(tr('Берег'))),
           DataColumn(label: Text('${tr('Расст.')}, $_unit')),
@@ -2840,17 +2921,33 @@ class _SoundingScreenState extends State<SoundingScreen>
               ),
               if (m.iceCover)
                 DataCell(
-                  Text(_numCell(v.iceThicknessCm, 2)),
+                  Text(
+                    v.iceThicknessCm == null
+                        ? tr('н/д')
+                        : _numCell(v.iceThicknessCm, 2),
+                    style: v.iceThicknessCm == null
+                        ? const TextStyle(
+                            color: Colors.grey,
+                            fontStyle: FontStyle.italic,
+                          )
+                        : null,
+                  ),
                   onTap: () async {
                     final value = await editNumberDialog(
                       context,
                       title: tr('Толщина льда, см'),
                       initial: v.iceThicknessCm,
+                      allowEmpty: true,
                     );
-                    if (value == null || value.isNaN || value < 0 || !mounted) {
+                    if (!mounted ||
+                        (value != null && (value.isNaN || value < 0))) {
                       return;
                     }
-                    setState(() => v.iceThicknessCm = roundTo(value, 2));
+                    setState(
+                      () => v.iceThicknessCm = value == null
+                          ? null
+                          : roundTo(value, 2),
+                    );
                     await _saveNow();
                   },
                 ),
@@ -3073,7 +3170,7 @@ class _VelocityScreenState extends State<VelocityScreen>
             const SizedBox(height: 18),
             NumField(
               label: tr('Уровень воды на начало измерения скоростей течения'),
-              hint: tr('Значение в метрах'),
+              hint: tr('В метрах'),
               initial: m.levelVelocityStart,
               maxLength: 10,
               onChanged: (v) {
@@ -3092,7 +3189,7 @@ class _VelocityScreenState extends State<VelocityScreen>
                     initial: m.rotorDiameter == null
                         ? null
                         : roundTo(m.rotorDiameter! * 100, 4),
-                    hint: tr('Диаметр в сантиметрах, например 5'),
+                    hint: tr('В сантиметрах'),
                     maxLength: 10,
                     onChanged: (v) {
                       setState(
@@ -3242,7 +3339,7 @@ class _VelocityScreenState extends State<VelocityScreen>
               const SizedBox(height: 12),
               NumField(
                 label: tr('Уровень воды на конец измерения скоростей течения'),
-                hint: tr('Значение в метрах'),
+                hint: tr('В метрах'),
                 initial: m.levelVelocityEnd,
                 maxLength: 10,
                 onChanged: (v) {
@@ -3321,6 +3418,8 @@ class _VelocityScreenState extends State<VelocityScreen>
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: DataTable(
+        horizontalMargin: 6,
+        columnSpacing: 12,
         columns: [
           DataColumn(label: Text(tr('Берег'))),
           DataColumn(label: Text(tr('Расст., м'))),
@@ -3396,7 +3495,7 @@ class _VelocityScreenState extends State<VelocityScreen>
           ),
           child: DataTable(
             key: const ValueKey('fixed-distance-column'),
-            horizontalMargin: 8,
+            horizontalMargin: 6,
             columnSpacing: 0,
             headingRowHeight: rowHeight,
             dataRowMinHeight: rowHeight,
@@ -3418,8 +3517,8 @@ class _VelocityScreenState extends State<VelocityScreen>
               headingRowHeight: rowHeight,
               dataRowMinHeight: rowHeight,
               dataRowMaxHeight: rowHeight,
-              horizontalMargin: 8,
-              columnSpacing: 14,
+              horizontalMargin: 6,
+              columnSpacing: 12,
               columns: [
                 DataColumn(label: Text(tr('Глуб., м'))),
                 DataColumn(label: Text(tr('Скорости'))),

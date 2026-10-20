@@ -134,7 +134,7 @@ void main() {
         ).writeAsString(jsonEncode(sample().toJson()));
       });
       await open(t, width: 320);
-      expect(find.text('v4.5.1'), findsOneWidget);
+      expect(find.text('v4.6'), findsOneWidget);
       expect(find.byKey(const ValueKey('import-krv')), findsNothing);
       await shot(t, 'home-$lang');
       await t.longPress(find.textContaining('Тестовая река').first);

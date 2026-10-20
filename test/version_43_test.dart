@@ -283,7 +283,7 @@ void main() {
       );
       expect(t.widget<DataTable>(find.byType(DataTable)).columns.length, 5);
       expect(csvContent(m).split('\n').first, header);
-      expect(header.split(';').length, 88);
+      expect(header.split(';').length, 89);
       expect(t.takeException(), isNull);
     },
   );

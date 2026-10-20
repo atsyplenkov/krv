@@ -5,29 +5,40 @@ enum CalculationScope { application, measurement, vertical }
 const aboutText =
     'Приложение навайбкожено студентом кафедры гидрологии суши географического факультета МГУ имени М. В. Ломоносова Олегом Лошковым в 2025-26 гг.\n\nМетодическая основа:\n- Методические указания МИ 1759-87;\n- Руководство по гидрологической практике ВМО № 168, шестая редакция\n\nОтзывы и предложения о поддержке и сотрудничестве:';
 const coefficientsIntro =
-    'Ниже представлены таблицы с весовыми коэффициентами для скоростей на разных глубинах при разных способах расчёта. Вы можете воспользоваться предлагаемыми приложением наборами или настроить свои.';
+    'Ниже представлены таблицы с весовыми коэффициентами для измеренных скоростей течения на разных глубинах, используемыми для расчёта средней скорости на вертикали. Вы можете воспользоваться предлагаемыми приложением наборами или настроить свои.';
 const coefficientsLimits =
     'Коэффициенты должны иметь значения больше нуля и не больше тысячи, а также не больше 3 знаков после запятой.';
 const specialRules =
-    'Для измерений в условиях ледовых явлений / наличия растительности используется отдельная таблица коэффициентов (ниже основной). В этих условиях приложение выбирает первую доступную схему сверху вниз только из этой таблицы. Если данных для её схем недостаточно, средняя скорость не рассчитывается; переход к таблице обычных условий не выполняется.';
+    'Для измерений в условиях ледовых явлений / наличия растительности используется отдельная таблица коэффициентов (ниже основной). В этих условиях приложение выбирает первую доступную схему сверху вниз только из этой таблицы. Если данных для её схем недостаточно, средняя скорость на вертикали не рассчитывается; переход к таблице обычных условий не выполняется.';
 const specialExample =
-    'При расчёте средней скорости на вертикали при ледовых явлениях / растительности используются схемы для особых условий. Например, при введённых скоростях на глубинах 0.2h, 0.6h и 0.8h расчёт будет произведён по паре 0.2h и 0.8h. При недостатке данных для особых схем средняя скорость не рассчитывается.';
+    'При расчёте средней скорости на вертикали при ледовых явлениях / растительности используются схемы для особых условий. Например, при введённых скоростях на глубинах 0.2h, 0.6h и 0.8h расчёт будет произведён по паре 0.2h и 0.8h. При недостатке данных для особых схем средняя скорость на вертикали не рассчитывается.';
 const iceDepthHelp =
-    'Приложение считает, что вводимые при ледоставе значения глубины являются значениями рабочей толщины воды без учёта толщины льда. Ледяной покров учитывается при расчёте смоченного периметра.';
+    'Приложение считает, что вводимые при ледоставе значения глубины являются значениями рабочей глубины без учёта толщины льда.';
 
-String calculationExplanation(CalculationScope scope) => [
-  tr(coefficientsIntro),
-  tr(switch (scope) {
-    CalculationScope.application =>
-      'Выбранный здесь набор коэффициентов будет использоваться по умолчанию для всех новых создаваемых измерений.',
-    CalculationScope.measurement =>
-      'Выбранный здесь набор коэффициентов будет использоваться для всех скоростных вертикалей в данном измерении расхода воды, кроме вертикалей с индивидуальным методом.',
-    CalculationScope.vertical =>
-      'Выбранный здесь набор коэффициентов будет использоваться для данной скоростной вертикали в данном измерении расхода воды.',
-  }),
-  tr(coefficientsLimits),
-  '\n${tr(specialRules)}',
-].join(' ');
+const icePerimeterHelp46 =
+    'Ледяной покров учитывается при расчёте смоченного периметра.';
+
+String calculationScopeText46(CalculationScope scope) => tr(switch (scope) {
+  CalculationScope.application =>
+    'Выбранный здесь набор коэффициентов для расчёта средней скорости на вертикали будет использоваться по умолчанию во всех новых измерениях расхода воды.',
+  CalculationScope.measurement =>
+    'Выбранный здесь набор коэффициентов для расчёта средней скорости на вертикали будет использоваться для всех скоростных вертикалей в данном измерении расхода воды, кроме вертикалей с индивидуальным методом.',
+  CalculationScope.vertical =>
+    'Выбранный здесь набор коэффициентов для расчёта средней скорости на вертикали будет использоваться только для данной скоростной вертикали в данном измерении расхода воды.',
+});
+
+Widget calculationHelp46(CalculationScope scope) => Text.rich(
+  TextSpan(
+    children: [
+      TextSpan(text: '${tr(coefficientsIntro)}\n\n'),
+      TextSpan(
+        text: calculationScopeText46(scope),
+        style: const TextStyle(fontWeight: FontWeight.bold),
+      ),
+      TextSpan(text: '\n\n${tr(coefficientsLimits)}\n\n${tr(specialRules)}'),
+    ],
+  ),
+);
 
 Widget conditionTitle(BuildContext context, {bool ice = false}) => Row(
   mainAxisSize: MainAxisSize.min,
@@ -44,7 +55,11 @@ Widget conditionTitle(BuildContext context, {bool ice = false}) => Row(
           title: Text(tr('Справка')),
           content: SingleChildScrollView(
             child: Text(
-              [if (ice) tr(iceDepthHelp), tr(specialExample)].join('\n\n'),
+              [
+                if (ice) tr(iceDepthHelp),
+                tr(specialExample),
+                if (ice) tr(icePerimeterHelp46),
+              ].join('\n\n'),
             ),
           ),
           actions: [
@@ -81,33 +96,60 @@ Iterable<({String text, bool sub})> notationParts(String text) sync* {
 }
 
 class NotationText extends StatelessWidget {
-  const NotationText(this.text, {super.key, this.style});
+  const NotationText(
+    this.text, {
+    super.key,
+    this.style,
+    this.keepSymbolsTogether = false,
+  });
   final String text;
   final TextStyle? style;
+  final bool keepSymbolsTogether;
   @override
   Widget build(BuildContext context) {
     final effective = DefaultTextStyle.of(context).style.merge(style);
     final size = effective.fontSize ?? 14;
-    return Text.rich(
-      TextSpan(
-        children: [
-          for (final part in notationParts(text))
-            if (!part.sub)
-              TextSpan(text: part.text)
-            else
-              WidgetSpan(
-                alignment: PlaceholderAlignment.baseline,
-                baseline: TextBaseline.alphabetic,
-                child: Transform.translate(
-                  offset: Offset(0, size * .18),
-                  child: Text(
-                    part.text,
-                    style: effective.copyWith(fontSize: size * .72),
-                  ),
-                ),
+    final parts = notationParts(text).toList();
+    Widget subscript(String value) => Transform.translate(
+      offset: Offset(0, size * .18),
+      child: Text(value, style: effective.copyWith(fontSize: size * .72)),
+    );
+    final spans = <InlineSpan>[];
+    for (var i = 0; i < parts.length; i++) {
+      final part = parts[i];
+      if (keepSymbolsTogether && i + 1 < parts.length && parts[i + 1].sub) {
+        // A line may wrap between terms, never between U and its depth index.
+        spans.add(
+          WidgetSpan(
+            alignment: PlaceholderAlignment.baseline,
+            baseline: TextBaseline.alphabetic,
+            child: MediaQuery.withNoTextScaling(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.baseline,
+                textBaseline: TextBaseline.alphabetic,
+                children: [
+                  Text(part.text, style: effective),
+                  subscript(parts[++i].text),
+                ],
               ),
-        ],
-      ),
+            ),
+          ),
+        );
+      } else if (part.sub) {
+        spans.add(
+          WidgetSpan(
+            alignment: PlaceholderAlignment.baseline,
+            baseline: TextBaseline.alphabetic,
+            child: subscript(part.text),
+          ),
+        );
+      } else {
+        spans.add(TextSpan(text: part.text));
+      }
+    }
+    return Text.rich(
+      TextSpan(children: spans),
       style: effective,
       semanticsLabel: text,
     );
@@ -150,8 +192,8 @@ Widget resultVelocityTable(BuildContext context, List<VerticalPoint> rows) {
     MediaQuery.textScalerOf(context).scale(32) + 24,
   );
   DataTable table(List<String> headers, List<List<String>> data) => DataTable(
-    horizontalMargin: 10,
-    columnSpacing: 18,
+    horizontalMargin: 6,
+    columnSpacing: 12,
     headingRowHeight: height,
     dataRowMinHeight: height,
     dataRowMaxHeight: height,
@@ -228,6 +270,8 @@ Widget resultSoundingTable(List<VerticalPoint> rows, {bool showIce = false}) {
     scrollDirection: Axis.horizontal,
     child: DataTable(
       key: const ValueKey('result-sounding-table'),
+      horizontalMargin: 6,
+      columnSpacing: 12,
       columns: [for (final i in indexes) DataColumn(label: Text(headers[i]))],
       rows: rows.map((v) {
         final cells = [
@@ -238,7 +282,7 @@ Widget resultSoundingTable(List<VerticalPoint> rows, {bool showIce = false}) {
           _numCell(v.avgDepth, 3),
           v.bottomType,
           _numCell(v.correctedDepth, 3),
-          _numCell(v.iceThicknessCm, 2),
+          v.iceThicknessCm == null ? tr('н/д') : _numCell(v.iceThicknessCm, 2),
         ];
         return DataRow(
           cells: [for (final i in indexes) DataCell(Text(cells[i]))],

@@ -146,10 +146,7 @@ void main() {
             .value,
         false,
       );
-      await tester.enterText(
-        field('Уровень воды на начало промерных работ'),
-        '0',
-      );
+      await tester.enterText(field('Уровень воды на начало промеров, м'), '0');
       expect(m.levelSoundingStartAt, isNull);
       await tester.enterText(field('Расст., м'), '1.25');
       final started = m.levelSoundingStartAt;
