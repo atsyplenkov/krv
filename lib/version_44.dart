@@ -722,7 +722,9 @@ Future<void> shareFiles44(
       /* Other platforms and older test harnesses use the package implementation. */
     }
   }
-  await Share.shareXFiles(files, text: text, subject: subject);
+  await SharePlus.instance.share(
+    ShareParams(files: files, text: text, subject: subject),
+  );
 }
 
 Future<Uint8List> icePng44(WdcMeasurement m) async {
