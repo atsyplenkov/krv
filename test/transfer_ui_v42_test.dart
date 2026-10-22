@@ -149,7 +149,8 @@ void main() {
       for (var i = 0; i < 15 && shared == null; i++) {
         await settleIo(t);
       }
-      expect(shared?.method, 'shareFiles');
+      expect(shared?.method, 'share');
+      expect(shared!.arguments['mimeTypes'], ['application/octet-stream']);
       final path = (shared!.arguments['paths'] as List).single as String;
       expect(path, endsWith('.krv'));
       expect(await t.runAsync(() => File(path).exists()), isTrue);
