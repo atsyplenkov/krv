@@ -1,16 +1,25 @@
 cff-version: 1.2.0
-message: "If you use WDC in research, please cite the version used."
+message: |
+  If you use WDC in research, please cite the version used.
+  These examples match the Russian and English citations in the app.
+  Replace the access-date placeholder with the date you consulted the software.
+
+  ГОСТ:
+  О. Д. Лошков. Калькулятор расходов воды : [Электронный ресурс] : мобильное приложение / разработчик О. Д. Лошков. – Версия 4.6. – Электрон. дан. – [Б. м.] : GitHub, 2026. – URL: https://github.com/olegegka/krv (дата обращения: ДД.ММ.ГГГГ).
+
+  ISO 690:
+  LOSHKOV, O. D., 2026. Water Discharge Calculator [mobile application]. Version 4.6. Electronic data. GitHub. Available from: https://github.com/olegegka/krv [Accessed day Month year]
 title: "Water Discharge Calculator"
 type: software
 authors:
   - family-names: "Loshkov"
     given-names: "Oleg"
-version: "4.5.1"
+version: "4.6.0"
 repository-code: "https://github.com/olegegka/krv"
 license: "Apache-2.0"
 
-date-released: '2026-10-17'
-url: 'https://github.com/olegegka/krv/releases/tag/v4.5.1'
+date-released: '2026-10-20'
+url: 'https://github.com/olegegka/krv/releases/tag/v4.6.0'
 abstract: 'Offline hydrometric field measurements, water discharge and cross-section calculations, and PDF/CSV reports.'
 keywords:
   - hydrology

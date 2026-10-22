@@ -205,9 +205,6 @@ void calculateGeometry44(WdcMeasurement m) {
   }
 }
 
-// Geometry limitations are reported, never silently converted to a zero discharge.
-String? calculationBlock44(WdcMeasurement m) => null;
-
 bool canMeasureSpeed44(VerticalPoint v) =>
     v.bank == null && (v.avgDepth ?? 0) > 0;
 
@@ -334,12 +331,65 @@ class LevelOptions44 extends StatelessWidget {
   }
 }
 
+bool hasIceProfile46(WdcMeasurement m) =>
+    m.iceCover &&
+    m.leftBank?.iceThicknessCm != null &&
+    m.rightBank?.iceThicknessCm != null;
+
+class IceMark46 extends StatelessWidget {
+  const IceMark46({super.key});
+  @override
+  Widget build(BuildContext context) => const SizedBox(
+    key: ValueKey('ice-cover-mark'),
+    width: 18,
+    height: 14,
+    child: CustomPaint(painter: IceMarkPainter46()),
+  );
+}
+
+class IceMarkPainter46 extends CustomPainter {
+  const IceMarkPainter46();
+  @override
+  void paint(Canvas canvas, Size size) {
+    final p = Path()
+      ..moveTo(1, 4)
+      ..lineTo(6, 1)
+      ..lineTo(17, 3)
+      ..lineTo(16, 11)
+      ..lineTo(5, 13)
+      ..lineTo(1, 10)
+      ..close();
+    canvas.drawPath(p, Paint()..color = const Color(0xFFA9DCF2));
+    canvas.drawPath(
+      p,
+      Paint()
+        ..color = const Color(0xFF2888B2)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1,
+    );
+    canvas.drawPath(
+      Path()
+        ..moveTo(1, 4)
+        ..lineTo(6, 6)
+        ..lineTo(17, 3)
+        ..moveTo(6, 6)
+        ..lineTo(5, 13),
+      Paint()
+        ..color = const Color(0xFF2888B2)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant IceMarkPainter46 oldDelegate) => false;
+}
+
 class IceProfile44 extends StatelessWidget {
   const IceProfile44({super.key, required this.m});
   final WdcMeasurement m;
   @override
-  Widget build(BuildContext context) =>
-      !m.iceCover || !m.verticals.any((v) => v.iceThicknessCm != null)
+  Widget build(BuildContext context) => !hasIceProfile46(m)
       ? const SizedBox.shrink()
       : SizedBox(
           height: 210,
@@ -374,7 +424,7 @@ class ProfilePainter44 extends CustomPainter {
   @override
   void paint(Canvas c, Size size) {
     final source = m.verticals;
-    if (source.length < 2) return;
+    if (source.length < 2 || (ice && !hasIceProfile46(m))) return;
     final g = sectionGeometry44(m);
     final pts = g.points;
     final minX = pts.map((p) => p.x).reduce(math.min),
@@ -411,41 +461,33 @@ class ProfilePainter44 extends CustomPainter {
       ..color = ink.withValues(alpha: .65)
       ..strokeWidth = 1;
     if (ice) {
-      for (var i = 1; i < source.length; i++) {
-        final a = source[i - 1], b = source[i];
-        if (a.distance == null ||
-            b.distance == null ||
-            a.iceThicknessCm == null ||
-            b.iceThicknessCm == null) {
-          continue;
-        }
-        final p = Path()
-          ..moveTo(sx(a.distance!), sy(0))
-          ..lineTo(sx(a.distance!), sy(a.iceThicknessCm!))
-          ..lineTo(sx(b.distance!), sy(b.iceThicknessCm!))
-          ..lineTo(sx(b.distance!), sy(0))
-          ..close();
-        c.drawPath(
-          p,
-          Paint()
-            ..color = dark ? const Color(0xFF426B7D) : const Color(0xFFD5EEF8),
-        );
-        c.drawLine(
-          Offset(sx(a.distance!), sy(a.iceThicknessCm!)),
-          Offset(sx(b.distance!), sy(b.iceThicknessCm!)),
-          Paint()
-            ..color = Colors.lightBlue
-            ..strokeWidth = 2,
-        );
+      final measured =
+          source
+              .where((v) => v.distance != null && v.iceThicknessCm != null)
+              .toList()
+            ..sort((a, b) => a.distance!.compareTo(b.distance!));
+      final outline = Paint()
+        ..color = Colors.lightBlue
+        ..strokeWidth = 2
+        ..style = PaintingStyle.stroke;
+      final p = Path()..moveTo(sx(measured.first.distance!), sy(0));
+      for (final v in measured) {
+        p.lineTo(sx(v.distance!), sy(v.iceThicknessCm!));
       }
-      for (final v in source) {
-        if (v.iceThicknessCm != null && v.distance != null) {
-          c.drawCircle(
-            Offset(sx(v.distance!), sy(v.iceThicknessCm!)),
-            3,
-            Paint()..color = Colors.lightBlue,
-          );
-        }
+      p.lineTo(sx(measured.last.distance!), sy(0));
+      final fill = Path.from(p)..close();
+      c.drawPath(
+        fill,
+        Paint()
+          ..color = dark ? const Color(0xFF426B7D) : const Color(0xFFD5EEF8),
+      );
+      c.drawPath(p, outline);
+      for (final v in measured) {
+        c.drawCircle(
+          Offset(sx(v.distance!), sy(v.iceThicknessCm!)),
+          3,
+          Paint()..color = Colors.lightBlue,
+        );
       }
     } else {
       for (final s in g.wet) {
@@ -717,6 +759,7 @@ const csvExtraHeaders44 = <String>[
   'measurement_metadata_json',
   'vertical_data_json',
   'calculated_profile_json',
+  'project',
 ];
 List<Object?> csvExtras44(
   WdcMeasurement m,
@@ -726,7 +769,7 @@ List<Object?> csvExtras44(
 ) {
   final first = m.verticals.isEmpty || identical(v, m.verticals.first);
   return [
-    '4.4',
+    '4.6',
     Project44.version,
     m.id,
     v.id,
@@ -781,6 +824,7 @@ List<Object?> csvExtras44(
                 .toList(),
           })
         : '',
+    m.project,
   ];
 }
 

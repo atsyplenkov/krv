@@ -622,8 +622,7 @@ Future<List<int>> pdfBytes(WdcMeasurement m) async {
     (await rootBundle.load('assets/icon/app_icon.png')).buffer.asUint8List(),
   );
   final profile = pw.MemoryImage(await profilePng(m));
-  final iceImage =
-      m.iceCover && m.verticals.any((v) => v.iceThicknessCm != null)
+  final iceImage = hasIceProfile46(m)
       ? pw.MemoryImage(await icePng44(m))
       : null;
   final doc = pw.Document();
@@ -632,7 +631,7 @@ Future<List<int>> pdfBytes(WdcMeasurement m) async {
     mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
     children: [
       pw.Text(
-        tr('Калькулятор расходов воды · 4.5.1'),
+        tr('Калькулятор расходов воды · 4.6'),
         style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700),
       ),
       pw.Image(logo, width: 52, height: 42, fit: pw.BoxFit.contain),
@@ -684,97 +683,112 @@ Future<List<int>> pdfBytes(WdcMeasurement m) async {
       _numCell(m.rotorDiameter == null ? null : m.rotorDiameter! * 100, 2),
     ],
   ];
-  doc.addPage(
-    pw.MultiPage(
-      pageFormat: PdfPageFormat.a4,
-      theme: theme,
-      margin: const pw.EdgeInsets.all(28),
-      maxPages: 200,
-      header: header,
-      footer: footer,
-      build: (context) => [
-        pw.Text(
-          tr('Ведомость расчёта расхода воды'),
-          style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold),
-        ),
-        pw.SizedBox(height: 6),
-        pw.Text(
-          '${m.titleRiver} — ${m.titleSite}',
-          style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold),
-        ),
-        pw.Text(
-          measurementTimeZone(m),
-          style: const pw.TextStyle(fontSize: 10),
-        ),
-        ...measurementTimes(m).entries.map(
-          (e) => pw.Text(
-            '${e.key}: ${e.value}',
-            style: const pw.TextStyle(fontSize: 10),
+  var pageWidgets = <pw.Widget>[
+    pw.Text(
+      tr('Ведомость расчёта расхода воды'),
+      style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold),
+    ),
+    pw.SizedBox(height: 6),
+    pw.Text(
+      '${m.titleRiver} — ${m.titleSite}',
+      style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold),
+    ),
+    if (m.project.isNotEmpty)
+      pw.Text(
+        '${tr('Проект')}: ${m.project}',
+        style: const pw.TextStyle(fontSize: 10),
+      ),
+    pw.Text(measurementTimeZone(m), style: const pw.TextStyle(fontSize: 10)),
+    ...measurementTimes(m).entries.map(
+      (e) => pw.Text(
+        '${e.key}: ${e.value}',
+        style: const pw.TextStyle(fontSize: 10),
+      ),
+    ),
+    pw.Text(
+      '${tr('Координаты')}: ${coordinatesText(m)}',
+      style: const pw.TextStyle(fontSize: 10),
+    ),
+    pw.SizedBox(height: 8),
+    pw.Text(
+      m.discharge == null
+          ? tr('Расход не определён')
+          : '${tr('Расход воды')}: ${_numCell(m.discharge, 6)} ${tr('м³/с')}',
+      style: pw.TextStyle(fontSize: 15, fontWeight: pw.FontWeight.bold),
+    ),
+    pw.SizedBox(height: 6),
+    pw.Text(
+      '${tr('Комментарий')}: ${m.comment.trim().isEmpty ? tr('не указан') : m.comment}',
+      style: const pw.TextStyle(fontSize: 11),
+    ),
+    pw.SizedBox(height: 8),
+    if (iceImage != null) ...[
+      heading(tr('Толщина льда')),
+      pw.Image(iceImage, width: 539, height: 142, fit: pw.BoxFit.contain),
+    ],
+    pw.Image(profile, width: 539, height: 247, fit: pw.BoxFit.contain),
+    pw.NewPage(freeSpace: 80),
+    heading(tr('Характеристики створа')),
+    pw.Table(
+      border: pw.TableBorder.all(color: PdfColors.grey500, width: .5),
+      columnWidths: {
+        0: const pw.FlexColumnWidth(3),
+        1: const pw.FlexColumnWidth(1.2),
+      },
+      children: [
+        for (final row in characteristics)
+          pw.TableRow(
+            children: [
+              for (final cell in row)
+                pw.Padding(
+                  padding: const pw.EdgeInsets.all(3),
+                  child: pdfNotation(cell, size: 10),
+                ),
+            ],
           ),
-        ),
-        pw.Text(
-          '${tr('Координаты')}: ${coordinatesText(m)}',
-          style: const pw.TextStyle(fontSize: 10),
-        ),
-        pw.SizedBox(height: 8),
-        pw.Text(
-          m.discharge == null
-              ? tr('Расход не определён')
-              : '${tr('Расход воды')}: ${_numCell(m.discharge, 6)} ${tr('м³/с')}',
-          style: pw.TextStyle(fontSize: 15, fontWeight: pw.FontWeight.bold),
-        ),
-        pw.SizedBox(height: 6),
-        pw.Text(
-          '${tr('Комментарий')}: ${m.comment.trim().isEmpty ? tr('не указан') : m.comment}',
-          style: const pw.TextStyle(fontSize: 11),
-        ),
-        pw.SizedBox(height: 8),
-        if (iceImage != null) ...[
-          heading(tr('Толщина льда')),
-          pw.Image(iceImage, width: 539, height: 142, fit: pw.BoxFit.contain),
-        ],
-        pw.Image(profile, width: 539, height: 247, fit: pw.BoxFit.contain),
-        pw.NewPage(freeSpace: 355),
-        heading(tr('Характеристики створа')),
-        pw.Table(
-          border: pw.TableBorder.all(color: PdfColors.grey500, width: .5),
-          columnWidths: {
-            0: const pw.FlexColumnWidth(3),
-            1: const pw.FlexColumnWidth(1.2),
-          },
-          children: [
-            for (final row in characteristics)
-              pw.TableRow(
-                children: [
-                  for (final cell in row)
-                    pw.Padding(
-                      padding: const pw.EdgeInsets.all(4),
-                      child: pdfNotation(cell, size: 11),
-                    ),
-                ],
-              ),
-          ],
-        ),
-        if (m.warnings.isNotEmpty) ...[
-          heading(tr('Предупреждения')),
-          ...m.warnings.map((w) => pw.Bullet(text: tr(w))),
-        ],
-        heading(tr('Таблица промерных вертикалей')),
-        soundingReportTable(m),
       ],
     ),
-  );
-  doc.addPage(
-    pw.MultiPage(
-      pageFormat: PdfPageFormat.a4.landscape,
-      theme: theme,
-      margin: const pw.EdgeInsets.all(28),
-      maxPages: 200,
-      header: header,
-      footer: footer,
-      build: (_) => velocityReportTables(m),
-    ),
-  );
+    if (m.warnings.isNotEmpty) ...[
+      heading(tr('Предупреждения')),
+      ...m.warnings.map((w) => pw.Bullet(text: tr(w))),
+    ],
+  ];
+  var landscape = false;
+  void flushPages() {
+    final content = List<pw.Widget>.of(pageWidgets);
+    doc.addPage(
+      pw.MultiPage(
+        pageFormat: landscape ? PdfPageFormat.a4.landscape : PdfPageFormat.a4,
+        theme: theme,
+        margin: const pw.EdgeInsets.all(28),
+        maxPages: 200,
+        header: header,
+        footer: footer,
+        build: (_) => content,
+      ),
+    );
+    pageWidgets = [];
+  }
+
+  final sounding = soundingReportData46(m);
+  final sections = [
+    ReportSection46([
+      pw.NewPage(freeSpace: 80),
+      heading(tr('Таблица промерных вертикалей')),
+      sounding.widget,
+    ], landscape: sounding.needsLandscape),
+    ...velocityReportSections46(m),
+  ];
+  for (final section in sections) {
+    if (section.landscape && !landscape) {
+      flushPages();
+      landscape = true;
+    }
+    // Once a wide table needs landscape, following narrower tables stay
+    // in that flow. MultiPage handles page breaks caused by available height.
+    pageWidgets.addAll(section.widgets);
+  }
+  if (pageWidgets.isNotEmpty) flushPages();
   // A dedicated A4 page keeps each complete photo and its caption together.
   for (var i = 0; i < m.photos.length; i++) {
     final photo = m.photos[i];

@@ -158,11 +158,11 @@ void main() {
         ),
       );
       await tester.scrollUntilVisible(
-        find.text('Вернуть настройки по умолчанию'),
+        find.byKey(const ValueKey('reset-calculation')),
         400,
         scrollable: find.byType(Scrollable).first,
       );
-      await tester.tap(find.text('Вернуть настройки по умолчанию'));
+      await tester.tap(find.byKey(const ValueKey('reset-calculation')));
       await tester.pumpAndSettle();
       expect(v.effectiveConfig!.preset, 'combined');
       await tester.tap(find.text('Сохранить'));

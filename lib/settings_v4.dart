@@ -84,7 +84,7 @@ String presetTitle(String preset) => tr(switch (preset) {
   _ => 'Прежний алгоритм',
 });
 String methodTitle(String method) => tr(switch (method) {
-  'six' => 'по 6 точкам',
+  'six' || 'sixSpecial' => 'по 6 точкам',
   'five' => 'по 5 точкам',
   'three' => 'по 3 точкам',
   'two' => 'по 2 точкам',
@@ -247,7 +247,7 @@ class _SettingsScreenState extends State<SettingsScreen>
               ),
             ),
             Text(
-              tr('Калькулятор расходов воды 4.5.1'),
+              tr('Калькулятор расходов воды 4.6'),
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.titleLarge,
             ),
@@ -313,6 +313,8 @@ class _SettingsScreenState extends State<SettingsScreen>
                   MaterialPageRoute(
                     builder: (_) => CalculationSettingsScreen(
                       config: draft.defaults,
+                      inherited: CalculationConfig(),
+                      allowReset: true,
                       onSave: (value) async {
                         setState(() => draft.defaults = value!.copy());
                       },
@@ -405,7 +407,15 @@ class _CalculationSettingsScreenState extends State<CalculationSettingsScreen>
     key: const ValueKey('reset-calculation'),
     contentPadding: EdgeInsets.zero,
     controlAffinity: ListTileControlAffinity.leading,
-    title: Text(tr('Вернуть настройки по умолчанию')),
+    title: Text(
+      tr(switch (widget.scope) {
+        CalculationScope.application => 'Вернуть по умолчанию для приложения',
+        CalculationScope.measurement =>
+          'Вернуть по умолчанию для данного расчёта',
+        CalculationScope.vertical =>
+          'Вернуть по умолчанию для всех вертикалей в данном расчёте',
+      }),
+    ),
     value: resetRequested,
     onChanged: (value) => toggleReset(value ?? false),
   );
@@ -473,27 +483,28 @@ class _CalculationSettingsScreenState extends State<CalculationSettingsScreen>
               ),
               if (widget.allowReset) resetControl(),
               const SizedBox(height: 12),
-              Text(calculationExplanation(widget.scope)),
+              calculationHelp46(widget.scope),
               const SizedBox(height: 12),
               Text(
                 tr('Обычные условия'),
                 style: Theme.of(context).textTheme.titleMedium,
               ),
-              _table(
-                ['six', 'five', 'three', 'two', 'one06', 'one02', 'oneSurface'],
-                ['surface', '02', '04', '06', '08', 'bottom'],
-              ),
+              _table(ordinaryMethods46, [
+                'surface',
+                '02',
+                '04',
+                '06',
+                '08',
+                'bottom',
+              ]),
+              ..._formulas(ordinaryMethods46),
               const SizedBox(height: 20),
               Text(
                 tr('Ледовые явления / растительность'),
                 style: Theme.of(context).textTheme.titleMedium,
               ),
-              _table([
-                'six',
-                'threeSpecial',
-                'twoSpecial',
-                'oneSpecial',
-              ], velocityKeys),
+              _table(specialMethods46, velocityKeys),
+              ..._formulas(specialMethods46),
               const SizedBox(height: 12),
               Text(
                 tr(
@@ -546,14 +557,27 @@ class _CalculationSettingsScreenState extends State<CalculationSettingsScreen>
           : null,
     ),
   );
+  List<Widget> _formulas(List<String> methods) => [
+    const SizedBox(height: 10),
+    for (final method in methods)
+      if (draft!.weights[method] != null)
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: NotationText(
+            '${methodTitle(method)}: ${tr('Uср')} = ${weightsFormula46(draft!.weights[method]!)}',
+            keepSymbolsTogether: true,
+          ),
+        ),
+  ];
+
   Widget _table(List<String> methods, List<String> keys) {
     final rowHeight = math.max(
       72.0,
       MediaQuery.textScalerOf(context).scale(32) + 24,
     );
     DataTable table(List<DataColumn> columns, List<DataRow> rows) => DataTable(
-      horizontalMargin: 8,
-      columnSpacing: 16,
+      horizontalMargin: 6,
+      columnSpacing: 12,
       headingRowHeight: rowHeight,
       dataRowMinHeight: rowHeight,
       dataRowMaxHeight: rowHeight,
