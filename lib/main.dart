@@ -904,7 +904,7 @@ class WdcStorage {
     unawaited(
       operation.then(
         (_) => clearQueue(),
-        onError: (Object _, StackTrace __) => clearQueue(),
+        onError: (Object _, StackTrace _) => clearQueue(),
       ),
     );
     return operation;
