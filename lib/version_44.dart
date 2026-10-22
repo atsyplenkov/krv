@@ -257,7 +257,7 @@ class Warning44 extends StatelessWidget {
           Text(tr(title), style: const TextStyle(fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
           Text(tr(message)),
-          if (child != null) child!,
+          ?child,
         ],
       ),
     ),

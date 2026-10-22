@@ -422,7 +422,7 @@ class _MeasurementPhotosState extends State<MeasurementPhotos> {
                 child: Image.file(
                   file,
                   fit: BoxFit.contain,
-                  errorBuilder: (_, __, ___) => const Center(
+                  errorBuilder: (_, _, _) => const Center(
                     child: Icon(
                       Icons.broken_image_outlined,
                       color: Colors.white,
@@ -506,7 +506,7 @@ class _MeasurementPhotosState extends State<MeasurementPhotos> {
                                 child: Image.file(
                                   snapshot.data!,
                                   fit: BoxFit.contain,
-                                  errorBuilder: (_, __, ___) =>
+                                  errorBuilder: (_, _, _) =>
                                       Text(tr('Фотография недоступна')),
                                 ),
                               ),
